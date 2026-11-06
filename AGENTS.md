@@ -47,3 +47,9 @@ Editor URL: `editor.html?path=<abs path>` (+ optional `&id=<capture id>`).
 - **C – Tools**: `export.rs`, `history.rs`, `ocr.rs`, `pin.rs`, `settings.rs`, `src/pin/`, `src/history/`, `src/settings/`, `src/i18n/tools.ts`.
 - **D – Advanced + installer**: `scroll.rs`, `recording.rs`, `src/scroll/`, `src/recorder/`, `src/i18n/extras.ts`, `scripts/`, `README.md`.
 Don't edit files you don't own except the marked shared spots above. Don't `git commit` (the lead commits).
+
+## Round 2 ownership (review + new tools + release)
+- **E – App review & new capture tools**: all Rust in `src-tauri/src/**` (incl. Cargo.toml, lib.rs, capabilities, tauri.conf.json except `bundle`), all frontend pages EXCEPT `src/editor/**`; i18n files except `editor.ts`. New pages allowed (`<name>.html` + `src/<name>/`).
+- **F – Editor review & new editor tools**: `src/editor/**`, `src/i18n/editor.ts`. May ask for Rust commands only by documenting them; must work with existing commands.
+- **G – License, privacy, docs, poster, tutorial video, release build**: `LICENSE`, `PRIVACY.md`, `README.md`, `docs/**`, `marketing/**` (own package.json, separate from the app), `scripts/**`, `bundle` section of `tauri.conf.json`.
+Project is free, open-source (MIT), no telemetry, no network access, all data stays local.
