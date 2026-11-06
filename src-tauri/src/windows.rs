@@ -51,3 +51,12 @@ pub fn open_onboarding(app: &AppHandle) -> tauri::Result<WebviewWindow> {
 pub fn url_encode(s: &str) -> String {
     enc(s)
 }
+
+/// Open the editor for an image that belongs to a history entry (`id` = CaptureResult id).
+pub fn open_editor_with_id(app: &AppHandle, image_path: &str, id: &str) -> tauri::Result<WebviewWindow> {
+    let label = format!("editor-{}", uuid::Uuid::new_v4().simple());
+    let q = format!("path={}&id={}", enc(image_path), enc(id));
+    let win = open_page(app, &label, "editor", &q, "CaptureME Editor", 1100.0, 760.0)?;
+    let _ = win.set_focus();
+    Ok(win)
+}

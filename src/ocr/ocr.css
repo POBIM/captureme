@@ -1,0 +1,16 @@
+html { color-scheme: dark; }
+html, body { background: transparent !important; }
+#card { position: fixed; inset: 0; display: flex; flex-direction: column; background: rgba(30,30,32,.97); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 6px 12px; -webkit-app-region: drag; }
+.head .title { font-weight: 600; flex: 1; }
+.head .status { color: var(--muted); font-size: 12px; }
+.head button { -webkit-app-region: no-drag; }
+textarea { flex: 1; margin: 0 10px; resize: none; border: 1px solid var(--border); border-radius: 8px; background: #18181a; color: var(--text); font: inherit; padding: 8px; outline: none; user-select: text; -webkit-user-select: text; }
+textarea:focus { border-color: var(--accent); }
+.foot { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 10px 10px; }
+.btn { appearance: none; border: 1px solid var(--border); background: var(--panel); color: var(--text); padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+.btn:hover { border-color: #666; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.x { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; }
+.x:hover { color: #fff; }
+.bar { height: 2px; background: var(--accent); transform-origin: left; }

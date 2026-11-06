@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capabilities for all CaptureME windows",
-  "windows": ["*"],
+  "windows": [
+    "*"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-close",
@@ -18,6 +20,12 @@
     "global-shortcut:default",
     "autostart:default",
     "dialog:default",
-    "opener:default"
+    "opener:default",
+    "global-shortcut:allow-unregister-all",
+    "core:window:allow-outer-position",
+    "core:window:allow-inner-size",
+    "core:window:allow-scale-factor",
+    "core:app:allow-version",
+    "core:event:default"
   ]
 }
