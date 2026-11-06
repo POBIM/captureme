@@ -192,7 +192,7 @@ fn item(app: &AppHandle, id: &str, text: &str, accel: Option<&String>) -> tauri:
     MenuItem::with_id(app, id, text, true, None::<&str>)
 }
 
-fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+pub(crate) fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let s = settings::get(app);
     let l = labels(&s.language);
     let hk = &s.hotkeys;

@@ -19,10 +19,37 @@
 </p>
 
 <p align="center">
-  <img src="marketing/out/poster-wide.png" alt="CaptureME poster" width="860">
+  <a href="https://github.com/POBIM/captureme/releases/latest"><img alt="⬇️ ดาวน์โหลด / Download CaptureME for Mac" src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_%E0%B8%94%E0%B8%B2%E0%B8%A7%E0%B8%99%E0%B9%8C%E0%B9%82%E0%B8%AB%E0%B8%A5%E0%B8%94_%C2%B7_Download-CaptureME_for_Mac-dc2626?style=for-the-badge&labelColor=111827" height="54"></a>
 </p>
 
-[ภาษาไทย](#ภาษาไทย) · [English](#english) · [Install guide TH](docs/INSTALL-TH.md) · [คู่มือใช้งาน](docs/USER-GUIDE-TH.md) · [Install EN](docs/INSTALL-EN.md) · [User guide EN](docs/USER-GUIDE-EN.md) · [Privacy](PRIVACY.md)
+<p align="center">
+  <b><a href="https://github.com/POBIM/captureme/releases/latest">⬇️ ดาวน์โหลด CaptureME สำหรับ Mac (ฟรี) → github.com/POBIM/captureme/releases/latest</a></b><br>
+  <sub>ไฟล์ <code>CaptureME_…_universal.dmg</code> · macOS 14+ · Apple Silicon และ Intel · ~8 MB</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/th/hero.webp" alt="CaptureME – ตัวแก้ไขภาพ OCR สีที่เลือก และภาพย่อ (หน้าต่างจริงของแอปบนหน้าจอโล่ง ๆ)" width="900"><br>
+  <sub>ภาพนี้คือ <b>หน้าต่างจริงของแอป</b> ถ่ายบนหน้าจอโล่ง ๆ (เนื้อหาตัวอย่างเขียนขึ้นเอง) · <i>Real app windows on an empty desktop – sample content is made up.</i></sub>
+</p>
+
+[ภาษาไทย](#ภาษาไทย) · [English](#english) · [คู่มือติดตั้ง](docs/INSTALL-TH.md) · [คู่มือใช้งาน](docs/USER-GUIDE-TH.md) · [Install guide](docs/INSTALL-EN.md) · [User guide](docs/USER-GUIDE-EN.md) · [Privacy](PRIVACY.md)
+
+## 🚀 เริ่มใน 3 ขั้นตอน
+| ① ดาวน์โหลดจาก GitHub | ② ลาก CaptureME ไป Applications | ③ เปิด · อนุญาต Screen Recording · จับภาพ |
+|:--:|:--:|:--:|
+| <a href="docs/INSTALL-TH.md#ขั้นตอนที่-1--ดาวน์โหลดจาก-github"><img src="docs/images/th/i02-github-release.webp" width="270" alt="หน้า Releases บน GitHub"></a> | <a href="docs/INSTALL-TH.md#ขั้นตอนที่-2--ลากลงใน-applications"><img src="docs/images/th/i03-dmg-window.webp" width="270" alt="หน้าต่าง DMG"></a> | <a href="docs/INSTALL-TH.md#ขั้นตอนที่-4--อนุญาต-screen-recording"><img src="docs/images/th/i06-onboarding.webp" width="190" alt="หน้าต้อนรับของแอป"></a> |
+| กดไฟล์ <code>.dmg</code> ในหัวข้อ **Assets** | ดับเบิลคลิก DMG แล้วลากไอคอนไปวาง | กด `⌃⇧2` ลากเลือกพื้นที่ → ภาพเปิดในตัวแก้ไข |
+
+macOS จะเตือนครั้งแรกเพราะแอปไม่ได้ลงนามกับ Apple (ฟรี ไม่ใช่ไวรัส) → ทำตาม **[คู่มือติดตั้งพร้อมภาพจริง](docs/INSTALL-TH.md)** ครั้งเดียวก็เสร็จ
+
+## 🖼️ ดูว่ามีอะไรบ้าง (คลิกภาพเพื่ออ่านวิธีใช้)
+| | | |
+|:--:|:--:|:--:|
+| <a href="docs/USER-GUIDE-TH.md#2-จับภาพ"><img src="docs/images/th/u01-capture-region.webp" width="290"></a><br><sub><b>จับภาพ</b> พื้นที่ · หน้าต่าง · เต็มจอ</sub> | <a href="docs/USER-GUIDE-TH.md#3-ตัวแก้ไขภาพ--ทีละเครื่องมือ"><img src="docs/images/th/e00-editor-overview.webp" width="290"></a><br><sub><b>ตัวแก้ไข</b> 20+ เครื่องมือ</sub> | <a href="docs/USER-GUIDE-TH.md#37-ปิดทึบ--เบลอ--โมเสก--d-b-x"><img src="docs/images/th/e07-redact.webp" width="290"></a><br><sub><b>ปิดทึบ · เบลอ · โมเสก</b></sub> |
+| <a href="docs/USER-GUIDE-TH.md#312-พื้นหลังตกแต่ง-beautifier"><img src="docs/images/th/e12-background.webp" width="290"></a><br><sub><b>พื้นหลังตกแต่ง</b></sub> | <a href="docs/USER-GUIDE-TH.md#5-ocr--อ่านข้อความจากภาพ"><img src="docs/images/th/t02-ocr-result.webp" width="290"></a><br><sub><b>OCR</b> ไทย + อังกฤษ</sub> | <a href="docs/USER-GUIDE-TH.md#4-ปักหมุดภาพ-pin"><img src="docs/images/th/t01-pin.webp" width="290"></a><br><sub><b>ปักหมุด</b> ภาพลอยบนจอ</sub> |
+| <a href="docs/USER-GUIDE-TH.md#6-อ่าน-qr--ดูดสี--ไม้บรรทัดพิกเซล"><img src="docs/images/th/u12-overlay-color.webp" width="290"></a><br><sub><b>ดูดสี · ไม้บรรทัด · QR</b></sub> | <a href="docs/USER-GUIDE-TH.md#8-สกรอลล์จับภาพ"><img src="docs/images/th/t05-scroll-control.webp" width="150"></a><br><sub><b>สกรอลล์จับภาพ</b></sub> | <a href="docs/USER-GUIDE-TH.md#9-บันทึกหน้าจอ-และหน้าต่างวิดีโอ"><img src="docs/images/th/t08-video-window.webp" width="290"></a><br><sub><b>บันทึกหน้าจอ</b> + ตัดต่อ MP4/GIF</sub> |
+
+➡️ **[คู่มือใช้งานทีละเครื่องมือ (ไทย)](docs/USER-GUIDE-TH.md)** · **[User guide, tool by tool (English)](docs/USER-GUIDE-EN.md)**
 
 ---
 
@@ -49,19 +76,12 @@
 | 🕘 | **ประวัติ** | ทุกภาพถูกเก็บไว้ กรองตามวัน เปิดแก้ไข คัดลอก ปักหมุด หรือลบได้ |
 | ⚙️ | **ตั้งค่า** | ไทย/อังกฤษ · โฟลเดอร์และรูปแบบชื่อไฟล์ · PNG/JPG/WebP · คีย์ลัดปรับเอง/ปิดได้ · เปิดอัตโนมัติ · **ลบข้อมูลทั้งหมด** ในปุ่มเดียว |
 
-### 📥 ดาวน์โหลดและติดตั้ง (4 ขั้นตอน)
+### 📥 ดาวน์โหลดและติดตั้ง
 > ต้องใช้ macOS 14 (Sonoma) ขึ้นไป · รองรับทั้ง Apple Silicon (M1–M4) และ Intel
 
-1. **ดาวน์โหลด** `CaptureME_<เวอร์ชัน>_universal.dmg` จากหน้า [Releases](https://github.com/POBIM/captureme/releases/latest)
-2. **เปิดไฟล์ DMG แล้วลาก CaptureME ไปที่ Applications**
-3. **เปิดแอปครั้งแรก (Gatekeeper)** – แอปนี้ยังไม่ได้ลงนามด้วย Apple Developer ID (ค่าสมาชิก Apple ปีละ $99 – เราเลือกแจกฟรีและไม่ผ่าน Apple) macOS จึงเตือนครั้งแรก:
-   - ดับเบิลคลิกเปิดแอป → จะขึ้นข้อความว่า Apple ตรวจสอบไม่ได้ ให้กด **เสร็จสิ้น (Done)**
-   - ไปที่ **ตั้งค่าระบบ › ความเป็นส่วนตัวและความปลอดภัย (Privacy & Security)** เลื่อนลงไปส่วน *ความปลอดภัย (Security)* แล้วกด **"ให้เปิดต่อไป" (Open Anyway)** ถัดจากข้อความ *"CaptureME" ถูกบล็อก* → ยืนยันด้วยรหัสผ่าน/Touch ID → กด **เปิด (Open Anyway)**
-   - ทำแค่ **ครั้งเดียว** หลังจากนี้เปิดได้ตามปกติ
-   - **ทางลัด (Terminal):** `xattr -dr com.apple.quarantine /Applications/CaptureME.app` แล้วเปิดแอปใหม่ (แก้ได้ทั้งกรณีขึ้นว่า "ไฟล์เสียหาย / damaged")
-4. **อนุญาต Screen Recording** – แอปจะพาไปหน้าตั้งค่าเอง (ครอบคลุมเสียงระบบด้วย): **ตั้งค่าระบบ › ความเป็นส่วนตัวและความปลอดภัย › การบันทึกหน้าจอและเสียงของระบบ** เปิดสวิตช์ *CaptureME* แล้ว **ปิดและเปิดแอปใหม่** (ไอคอนช่องมองภาพจะอยู่บนแถบเมนู)
+ทำตาม **[คู่มือติดตั้งพร้อมภาพจริง](docs/INSTALL-TH.md)**: ① ดาวน์โหลด `.dmg` จาก [Releases](https://github.com/POBIM/captureme/releases/latest) → ② ลากไปที่ Applications → ③ เปิดครั้งแรก/*Open Anyway* (แอปไม่ได้ลงนามกับ Apple ค่าสมาชิก $99/ปี – เราเลือกแจกฟรี) → ④ อนุญาต *Screen Recording* แล้วเปิดแอปใหม่ → ⑤ หาไอคอนบนแถบเมนูแล้วกด `⌃⇧2`
 
-คู่มือละเอียดพร้อมภาพประกอบ: [docs/INSTALL-TH.md](docs/INSTALL-TH.md)
+ทางลัด Terminal (แก้ได้ทั้งกรณี "แอปเสียหาย"): `xattr -dr com.apple.quarantine /Applications/CaptureME.app`
 
 ### ⌨️ คีย์ลัดเริ่มต้น
 | การทำงาน | คีย์ลัด |
@@ -165,19 +185,14 @@ OCR ภาษาไทยของ Apple Vision ต้องใช้ macOS 14 �
 | 🕘 | **History** | Every capture is kept – filter by day, re-open, edit, copy, pin or delete |
 | ⚙️ | **Settings** | Thai / English · folder & filename pattern · PNG/JPG/WebP · custom / disabled shortcuts · launch at login · one-click **remove all data** |
 
-### 📥 Download & install (4 steps)
+### 📥 Download & install
 > Requires macOS 14 (Sonoma) or later · Apple Silicon (M1–M4) **and** Intel
 
-1. **Download** `CaptureME_<version>_universal.dmg` from [Releases](https://github.com/POBIM/captureme/releases/latest).
-2. **Open the DMG and drag CaptureME to Applications.**
-3. **First launch (Gatekeeper).** The app is not signed with an Apple Developer ID (that costs $99/year – we chose to ship free and independent), so macOS warns you the first time:
-   - Double-click the app. A dialog says Apple cannot verify it – click **Done**.
-   - Open **System Settings › Privacy & Security**, scroll to the *Security* section and click **Open Anyway** next to *"CaptureME" was blocked to protect your Mac* → confirm with your password / Touch ID → click **Open Anyway** again.
-   - You only do this **once**.
-   - **Terminal shortcut:** `xattr -dr com.apple.quarantine /Applications/CaptureME.app`, then open the app again (also fixes the "is damaged and can't be opened" message).
-4. **Allow Screen Recording.** The app takes you there: **System Settings › Privacy & Security › Screen & System Audio Recording** – switch *CaptureME* on, then **quit and reopen the app** (look for the viewfinder icon in the menu bar).
+<p align="center"><img src="docs/images/en/hero.webp" width="780" alt="CaptureME real windows on an empty desktop"></p>
 
-Illustrated guide: [docs/INSTALL-EN.md](docs/INSTALL-EN.md)
+Follow the **[illustrated install guide](docs/INSTALL-EN.md)**: ① download the `.dmg` from [Releases](https://github.com/POBIM/captureme/releases/latest) → ② drag it to Applications → ③ first launch / *Open Anyway* (the app is not signed with a $99/year Apple ID – we chose to stay free) → ④ allow *Screen Recording* and reopen → ⑤ find the menu-bar icon and press `⌃⇧2`.
+
+Terminal shortcut (also fixes "is damaged"): `xattr -dr com.apple.quarantine /Applications/CaptureME.app`
 
 ### ⌨️ Default shortcuts
 | Action | Shortcut |
@@ -257,7 +272,7 @@ Be kind and respectful (we follow the [Contributor Covenant](https://www.contrib
 ### 📄 License
 **MIT License** – © 2026 Sitthichat. Free to use, share and modify, no warranty. Keep the copyright notice and the [LICENSE](LICENSE) file when redistributing.
 
-Project layout: `src-tauri/` (Rust, Tauri 2) · `src/` (TypeScript pages) · `scripts/` (installer) · `docs/` (guides) · `marketing/` (poster & tutorial video, [Remotion](marketing/README.md)).
+Project layout: `src-tauri/` (Rust, Tauri 2) · `src/` (TypeScript pages) · `scripts/` (installer) · `docs/` (install & user guides, real screenshots; developer notes in [`docs/dev/`](docs/dev/)) · `marketing/` (posters, social cards & tutorial video built from real captures – [how to regenerate](marketing/README.md)).
 
 ---
 <sub>Created in [T3 Code](https://t3.codes).</sub>

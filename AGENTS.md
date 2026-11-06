@@ -53,3 +53,8 @@ Don't edit files you don't own except the marked shared spots above. Don't `git 
 - **F – Editor review & new editor tools**: `src/editor/**`, `src/i18n/editor.ts`. May ask for Rust commands only by documenting them; must work with existing commands.
 - **G – License, privacy, docs, poster, tutorial video, release build**: `LICENSE`, `PRIVACY.md`, `README.md`, `docs/**`, `marketing/**` (own package.json, separate from the app), `scripts/**`, `bundle` section of `tauri.conf.json`.
 Project is free, open-source (MIT), no telemetry, no network access, all data stays local.
+
+## Round 3 – real-UI documentation & PR material (Agent I)
+- **No mock UI anywhere.** All docs images (`docs/images/{th,en}`), posters, cards and videos come from real captures of the app (`marketing/capture`, see `marketing/README.md`).
+- `src-tauri/src/demo.rs` – debug-only demo driver (`#[cfg(debug_assertions)]` + env `CAPTUREME_DEMO=<dir>`); release builds contain only empty stubs. Frontend hooks: `src/editor/demo.ts` (loaded by `vite dev` + `?demo` only) and `src/shared/demo.ts` (`demoOverride`, DEV only). Keep them isolated; never add behaviour to release builds.
+- Developer-internal notes live in `docs/dev/` (`REVIEW-APP.md`, `REVIEW-EDITOR.md`) – keep the repo root clean for newcomers.

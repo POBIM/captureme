@@ -53,6 +53,9 @@ pub fn place(r: &SelectionRect, bw: f64, bh: f64, order: &[Side]) -> (f64, f64) 
 
 /// Hide a window from screenshots / screen recordings (NSWindowSharingNone).
 pub fn exclude_from_capture(app: &AppHandle, win: &WebviewWindow) {
+    if crate::demo::active() {
+        return; // demo captures photograph these windows on purpose
+    }
     #[cfg(target_os = "macos")]
     if let Ok(ptr) = win.ns_window() {
         let addr = ptr as usize;

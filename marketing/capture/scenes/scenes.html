@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><title>CaptureME demo scenes</title>
+<style>
+@font-face{font-family:"Plex";font-weight:400;src:url(../../src/fonts/ibm-plex-sans-thai-thai-400-normal.woff2)}
+@font-face{font-family:"Plex";font-weight:500;src:url(../../src/fonts/ibm-plex-sans-thai-thai-500-normal.woff2)}
+@font-face{font-family:"Plex";font-weight:600;src:url(../../src/fonts/ibm-plex-sans-thai-thai-600-normal.woff2)}
+@font-face{font-family:"Plex";font-weight:700;src:url(../../src/fonts/ibm-plex-sans-thai-thai-700-normal.woff2)}
+@font-face{font-family:"Plex";font-weight:400;unicode-range:U+0000-00FF,U+2000-206F,U+20A0-20CF;src:url(../../src/fonts/ibm-plex-sans-thai-latin-400-normal.woff2)}
+@font-face{font-family:"Plex";font-weight:500;unicode-range:U+0000-00FF,U+2000-206F,U+20A0-20CF;src:url(../../src/fonts/ibm-plex-sans-thai-latin-500-normal.woff2)}
+@font-face{font-family:"Plex";font-weight:600;unicode-range:U+0000-00FF,U+2000-206F,U+20A0-20CF;src:url(../../src/fonts/ibm-plex-sans-thai-latin-600-normal.woff2)}
+@font-face{font-family:"Plex";font-weight:700;unicode-range:U+0000-00FF,U+2000-206F,U+20A0-20CF;src:url(../../src/fonts/ibm-plex-sans-thai-latin-700-normal.woff2)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden;font-family:"Plex","Thonburi",sans-serif;color:#1f2937}
+/* neutral, empty desktop */
+body{background:radial-gradient(1200px 800px at 15% 10%,#e9eef7 0,transparent 60%),radial-gradient(1000px 700px at 90% 95%,#e8e4f2 0,transparent 55%),linear-gradient(160deg,#dfe6f1,#d4dbe8)}
+.win{position:absolute;background:#fff;border-radius:12px;box-shadow:0 18px 50px rgba(30,41,59,.28),0 0 0 1px rgba(15,23,42,.10);overflow:hidden}
+.bar{height:38px;background:linear-gradient(#f6f7f9,#eceef2);border-bottom:1px solid #dcdfe5;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:#475569;position:relative}
+.bar .lights{display:none}
+.bar .lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57;display:block}
+.bar .lights i:nth-child(2){background:#febc2e}.bar .lights i:nth-child(3){background:#28c840}
+.scene{display:none}
+.scene.on{display:block}
+
+/* ---------- dashboard ---------- */
+#dash{left:120px;top:80px;width:1200px;height:740px}
+.page{display:flex;height:702px}
+.side{width:200px;background:#1f2937;color:#cbd5e1;padding:22px 16px;font-size:14px}
+.side b{display:block;color:#fff;font-size:18px;margin-bottom:22px}
+.side div{padding:9px 12px;border-radius:8px;margin-bottom:4px}
+.side .act{background:#374151;color:#fff}
+.main{flex:1;padding:24px 28px;background:#f8fafc;overflow:hidden}
+h1{font-size:24px;font-weight:700}
+.sub{color:#64748b;font-size:14px;margin:2px 0 18px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kpi{background:#fff;border-radius:12px;padding:14px 16px;border:1px solid #e5e7eb}
+.kpi small{color:#64748b;font-size:13px;display:block}
+.kpi strong{font-size:26px;display:block;margin-top:2px}
+.kpi em{font-style:normal;font-size:12.5px;color:#16a34a;font-weight:600}
+.kpi.red em{color:#dc2626}
+.row2{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;margin-top:14px}
+.card{background:#fff;border-radius:12px;padding:16px 18px;border:1px solid #e5e7eb}
+.card h3{font-size:15px;font-weight:600;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{text-align:left;padding:8px 6px;border-bottom:1px solid #eef0f3}
+th{color:#64748b;font-weight:500;font-size:13px}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600;background:#dcfce7;color:#15803d}
+.pill.o{background:#ffedd5;color:#c2410c}
+.cust p{font-size:14px;margin:7px 0;color:#374151}.cust p b{display:inline-block;width:92px;color:#64748b;font-weight:500}
+
+/* ---------- document (OCR) ---------- */
+#doc{left:230px;top:140px;width:980px;height:520px;display:none}
+#doc .body{padding:44px 64px;font-size:21px;line-height:1.75;color:#111827}
+#doc h2{font-size:30px;margin-bottom:6px}
+#doc .meta{color:#64748b;font-size:17px;margin-bottom:22px}
+#doc .en{margin-top:20px;padding:14px 18px;background:#f1f5f9;border-radius:10px;font-size:19px}
+
+/* ---------- qr ---------- */
+#qr{left:420px;top:130px;width:600px;height:640px}
+#qr .body{padding:34px;text-align:center}
+#qr h2{font-size:28px}
+#qr p{color:#64748b;font-size:18px;margin:8px 0 22px}
+#qr img{width:340px;height:340px;image-rendering:pixelated;border:14px solid #fff;box-shadow:0 0 0 1px #e5e7eb}
+#qr .cap{font-size:16px;color:#475569;margin-top:20px}
+
+/* ---------- colours ---------- */
+#pal{left:200px;top:170px;width:1040px;height:470px}
+#pal .body{padding:34px 40px}
+#pal h2{font-size:28px;margin-bottom:4px}
+#pal p{color:#64748b;font-size:17px;margin-bottom:24px}
+.sw{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.sw div{height:150px;border-radius:14px;color:#fff;font-weight:600;font-size:18px;padding:16px;display:flex;align-items:flex-end}
+.sw div:nth-child(n+5){height:120px}
+
+/* ---------- long page for scroll capture / boxes for measure ---------- */
+#boxes{left:160px;top:100px;width:1120px;height:700px}
+#boxes .body{padding:36px;display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+#boxes .b{height:210px;border-radius:14px;color:#fff;padding:22px;font-weight:600;font-size:22px}
+</style></head>
+<body>
+
+<div class="scene" id="s-dashboard">
+ <div class="win" id="dash">
+  <div class="bar"><span class="lights"><i></i><i></i><i></i></span>บ้านสวนคาเฟ่ · แดชบอร์ดยอดขาย</div>
+  <div class="page">
+   <div class="side"><b>☕ บ้านสวน</b><div class="act">ภาพรวม</div><div>ออเดอร์</div><div>เมนู</div><div>ลูกค้า</div><div>สต็อก</div><div>รายงาน</div><div>ตั้งค่า</div></div>
+   <div class="main">
+    <h1>สรุปยอดขายเดือนมีนาคม</h1><div class="sub">อัปเดตล่าสุด 18 มี.ค. 2569 · สาขาเชียงใหม่</div>
+    <div class="kpis">
+     <div class="kpi"><small>ยอดขายรวม</small><strong>฿248,500</strong><em>▲ 12.4%</em></div>
+     <div class="kpi"><small>จำนวนออเดอร์</small><strong>1,284</strong><em>▲ 8.1%</em></div>
+     <div class="kpi"><small>ลูกค้าใหม่</small><strong>312</strong><em>▲ 21.0%</em></div>
+     <div class="kpi red"><small>ค่าเฉลี่ยต่อบิล</small><strong>฿193</strong><em>▼ 2.3%</em></div>
+    </div>
+    <div class="row2">
+     <div class="card"><h3>ยอดขายรายสัปดาห์ (บาท)</h3>
+      <svg viewBox="0 0 560 230" width="100%" height="196">
+       <g stroke="#e5e7eb"><line x1="40" y1="20" x2="550" y2="20"/><line x1="40" y1="70" x2="550" y2="70"/><line x1="40" y1="120" x2="550" y2="120"/><line x1="40" y1="170" x2="550" y2="170"/><line x1="40" y1="200" x2="550" y2="200" stroke="#9ca3af"/></g>
+       <g fill="#94a3b8" font-size="12" font-family="Plex"><text x="4" y="24">80k</text><text x="4" y="74">60k</text><text x="4" y="124">40k</text><text x="4" y="174">20k</text></g>
+       <g fill="#6366f1"><rect x="70" y="110" width="58" height="90" rx="6"/><rect x="170" y="80" width="58" height="120" rx="6"/><rect x="270" y="50" width="58" height="150" rx="6"/><rect x="370" y="35" width="58" height="165" rx="6" fill="#4f46e5"/><rect x="470" y="70" width="58" height="130" rx="6"/></g>
+       <g fill="#64748b" font-size="13" font-family="Plex" text-anchor="middle"><text x="99" y="220">สัปดาห์ 1</text><text x="199" y="220">สัปดาห์ 2</text><text x="299" y="220">สัปดาห์ 3</text><text x="399" y="220">สัปดาห์ 4</text><text x="499" y="220">สัปดาห์ 5</text></g>
+       <text x="399" y="28" font-size="13" font-weight="700" fill="#4f46e5" text-anchor="middle" font-family="Plex">62,800</text>
+      </svg></div>
+     <div class="card cust"><h3>ข้อมูลลูกค้าล่าสุด</h3>
+      <p><b>ชื่อ</b>สมชาย ใจดี</p><p><b>โทรศัพท์</b>081-234-5678</p><p><b>อีเมล</b>somchai@example.com</p><p><b>บัญชี</b>123-4-56789-0</p><p><b>สถานะ</b><span class="pill">ชำระแล้ว</span></p>
+     </div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>เมนูขายดี</h3>
+     <table><tr><th>เมนู</th><th>จำนวน</th><th>ยอดขาย</th><th>สถานะ</th></tr>
+      <tr><td>ลาเต้เย็น</td><td>412</td><td>฿49,440</td><td><span class="pill">พร้อมขาย</span></td></tr>
+      <tr><td>ชาไทยปั่น</td><td>286</td><td>฿25,740</td><td><span class="pill o">เหลือน้อย</span></td></tr>
+</table></div>
+   </div></div></div>
+</div>
+
+<div class="scene" id="s-doc">
+ <div class="win" id="doc" style="display:block">
+  <div class="bar"><span class="lights"><i></i><i></i><i></i></span>ประกาศ.txt</div>
+  <div class="body">
+   <h2>ประกาศเปิดรับสมัครอาสาสมัคร</h2><div class="meta">ชมรมอนุรักษ์ป่าชุมชนบ้านสวน · วันที่ 18 มีนาคม 2569</div>
+   <p>ขอเชิญชวนทุกท่านร่วมกิจกรรมปลูกป่าชุมชนประจำปี ในวันเสาร์ที่ 5 เมษายน 2569 เวลา 08.00 น. ณ ศาลาประชาคมหมู่ที่ 3 ตำบลสันทราย อำเภอเมือง จังหวัดเชียงใหม่</p>
+   <p>ผู้สมัครกรุณานำน้ำดื่มและหมวกมาเอง ทางชมรมเตรียมกล้าไม้ อาหารกลางวัน และอุปกรณ์ปลูกให้ทุกคน สอบถามเพิ่มเติมโทร 053-123-456</p>
+   <div class="en">Join our community tree-planting day. Free lunch and seedlings provided. Registration: hello@bansuan.example</div>
+  </div></div>
+</div>
+
+<div class="scene" id="s-qr">
+ <div class="win" id="qr">
+  <div class="bar"><span class="lights"><i></i><i></i><i></i></span>โปสเตอร์งาน</div>
+  <div class="body"><h2>ดาวน์โหลด CaptureME ฟรี</h2><p>สแกน QR เพื่อเปิดหน้าดาวน์โหลดบน GitHub</p>
+   <img id="qrimg" alt=""><div class="cap">github.com/POBIM/captureme</div></div>
+ </div>
+</div>
+
+<div class="scene" id="s-pal">
+ <div class="win" id="pal">
+  <div class="bar"><span class="lights"><i></i><i></i><i></i></span>แนวทางแบรนด์</div>
+  <div class="body"><h2>ชุดสีแบรนด์ บ้านสวนคาเฟ่</h2><p>คลิกที่สีใดก็ได้เพื่อดูดค่า HEX / RGB / HSL</p>
+   <div class="sw">
+    <div style="background:#DC2626">แดงเข้ม</div><div style="background:#F97316">ส้มอบอุ่น</div><div style="background:#FACC15;color:#422006">เหลืองทอง</div><div style="background:#16A34A">เขียวใบไม้</div>
+    <div style="background:#0EA5E9">ฟ้าใส</div><div style="background:#6366F1">คราม</div><div style="background:#EC4899">ชมพู</div><div style="background:#1F2937">เทาเข้ม</div>
+   </div></div>
+ </div>
+</div>
+
+<div class="scene" id="s-boxes">
+ <div class="win" id="boxes">
+  <div class="bar"><span class="lights"><i></i><i></i><i></i></span>เลย์เอาต์ออกแบบ</div>
+  <div class="body">
+   <div class="b" style="background:#6366F1">การ์ดที่ 1</div><div class="b" style="background:#0EA5E9">การ์ดที่ 2</div><div class="b" style="background:#16A34A">การ์ดที่ 3</div>
+   <div class="b" style="background:#F97316">การ์ดที่ 4</div><div class="b" style="background:#EC4899">การ์ดที่ 5</div><div class="b" style="background:#1F2937">การ์ดที่ 6</div>
+  </div></div>
+</div>
+
+<script>
+const q = new URLSearchParams(location.search);
+const name = q.get("scene") || "dashboard";
+document.getElementById("s-" + name).classList.add("on");
+if (q.get("qr")) document.getElementById("qrimg").src = q.get("qr");
+</script>
+</body></html>

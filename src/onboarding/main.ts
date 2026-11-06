@@ -1,6 +1,7 @@
 // First-run onboarding: welcome, screen-recording permission, shortcut cheat-sheet, language toggle.
 import "./onboarding.css";
 import { invoke } from "@tauri-apps/api/core";
+import { demoOverride } from "../shared/demo";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, HOTKEY_ACTIONS, REPO_URL, Settings } from "../shared/api";
@@ -104,7 +105,7 @@ function updateStatus() {
 
 async function poll() {
   try {
-    const g = await invoke<boolean>("check_screen_permission");
+    const g = demoOverride<boolean>("check_screen_permission") ?? await invoke<boolean>("check_screen_permission");
     if (g !== granted) { granted = g; updateStatus(); }
   } catch { /* ignore */ }
 }
@@ -114,7 +115,7 @@ async function init() {
     settings = await api.getSettings();
     setLang(settings.language);
   } catch { /* keep stored language */ }
-  granted = await invoke<boolean>("check_screen_permission").catch(() => false);
+  granted = demoOverride<boolean>("check_screen_permission") ?? await invoke<boolean>("check_screen_permission").catch(() => false);
   render();
   setInterval(poll, 1500);
   window.addEventListener("focus", poll);

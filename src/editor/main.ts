@@ -197,3 +197,5 @@ async function init() {
 }
 init();
 void requestRender;
+// Marketing-capture helpers: dev server only, and only with ?demo in the URL (stripped from production builds).
+if (import.meta.env.DEV && queryParam("demo") !== null) import("./demo").then((m) => m.installDemo(canvas));

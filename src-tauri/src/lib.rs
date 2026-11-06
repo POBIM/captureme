@@ -28,6 +28,8 @@ pub mod import;
 pub mod privacy;
 pub mod qr;
 pub mod thumb;
+// Demo driver for the marketing captures – debug builds + CAPTUREME_DEMO only (see demo.rs)
+pub mod demo;
 
 use std::sync::Mutex;
 use tauri::Manager;
@@ -64,10 +66,15 @@ pub fn run() {
             app.manage(settings::SettingsState(Mutex::new(s)));
 
             tray::init(&handle)?;
-            hotkey::init(&handle)?;
+            let demo_mode = demo::init(&handle); // false in release builds
+            if !demo_mode {
+                hotkey::init(&handle)?;
+            }
             // ===== setup: Agent A may add permission/onboarding checks here =====
             capture::cleanup_stale(&handle);
-            permissions::onboarding_if_needed(&handle);
+            if !demo_mode {
+                permissions::onboarding_if_needed(&handle);
+            }
             // ===== setup: Agent D may add init calls here =====
             #[cfg(debug_assertions)]
             recording::debug_autotest(&handle);
@@ -163,6 +170,8 @@ pub fn run() {
             import::import_image_file,
             privacy::remove_all_data,
             privacy::quit_app,
+            // ===== demo driver (inert unless a debug build runs with CAPTUREME_DEMO) =====
+            demo::demo_report,
         ])
         .build(tauri::generate_context!())
         .expect("error while building CaptureME")

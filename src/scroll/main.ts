@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { applyI18n, setLang, t } from "../shared/i18n";
 import { api, queryParam } from "../shared/api";
+import { demoOverride } from "../shared/demo";
 import "./style.css";
 
 interface Preview { jpeg: string; rows: number; width: number; frames: number; limit: boolean }
@@ -23,7 +24,7 @@ async function init() {
     app.innerHTML = '<div class="frame"></div>';
     return;
   }
-  const st = await invoke<Status>("scroll_status");
+  const st = demoOverride<Status>("scroll_status") ?? await invoke<Status>("scroll_status");
   app.innerHTML = `
     <div class="panel" data-tauri-drag-region>
       <div class="row" data-tauri-drag-region>

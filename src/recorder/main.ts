@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { applyI18n, setLang, t } from "../shared/i18n";
 import { api, queryParam } from "../shared/api";
+import { demoOverride } from "../shared/demo";
 import { fmtClock, type RecOptions, type RecStatus } from "./types";
 import "./style.css";
 
@@ -28,7 +29,8 @@ async function init() {
     return;
   }
   if (mode === "fx") return void runFx();
-  const st = await invoke<RecStatus>("recording_status");
+  const demo = demoOverride<RecStatus>("recording_status");
+  const st = demo ? { ...demo, options: await invoke<RecOptions>("recording_options_get") } : await invoke<RecStatus>("recording_status");
   if (st.recording) showRecording(st);
   else showSetup(st);
   // recording started from elsewhere (hotkey flow, tests): switch the bar to the timer view

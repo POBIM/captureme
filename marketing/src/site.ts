@@ -12,3 +12,5 @@ export const APP = app as {
 export const QR = qr as { url: string; size: number; rows: string[] };
 /** Keys (⌃⇧2 → ["⌃","⇧","2"]) for an action id. */
 export const keys = (action: string): string[] => APP.shortcuts[action] ?? [];
+
+export const DOWNLOAD_URL_FULL = "github.com/POBIM/captureme/releases/latest";

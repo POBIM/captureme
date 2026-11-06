@@ -2,7 +2,8 @@
 import QRCode from "qrcode";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 const site = JSON.parse(readFileSync(new URL("../site.json", import.meta.url), "utf8"));
-const qr = QRCode.create(site.url, { errorCorrectionLevel: "M" });
+const target = site.url + "/releases/latest"; // the QR always opens the newest release
+const qr = QRCode.create(target, { errorCorrectionLevel: "M" });
 const n = qr.modules.size;
 const rows = [];
 for (let y = 0; y < n; y++) {
@@ -11,5 +12,5 @@ for (let y = 0; y < n; y++) {
   rows.push(r);
 }
 mkdirSync(new URL("../src/generated/", import.meta.url), { recursive: true });
-writeFileSync(new URL("../src/generated/qr.json", import.meta.url), JSON.stringify({ url: site.url, size: n, rows }, null, 1));
-console.log(`QR for ${site.url}: ${n}x${n} modules`);
+writeFileSync(new URL("../src/generated/qr.json", import.meta.url), JSON.stringify({ url: target, size: n, rows }, null, 1));
+console.log(`QR for ${target}: ${n}x${n} modules`);

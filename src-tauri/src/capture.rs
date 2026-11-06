@@ -31,6 +31,8 @@ struct Shot {
     scale: f64,
     image: RgbaImage,
     png: PathBuf,
+    /// Window/webview magnification (always 1.0 except in debug-build demo scenes, see demo.rs).
+    zoom: f64,
 }
 
 #[derive(Clone, Serialize)]
@@ -373,7 +375,7 @@ fn style_window(app: &AppHandle, win: &WebviewWindow, frame: Option<(f64, f64, f
 // ---------------------------------------------------------------------------------------------
 
 fn open_overlays(app: &AppHandle, mode: &str) -> Result<(), String> {
-    if !ensure_permission(app) {
+    if !crate::demo::scene_pending() && !ensure_permission(app) {
         return Err("screen recording permission missing".into());
     }
     if ACTIVE.swap(true, Ordering::SeqCst) {
@@ -391,8 +393,9 @@ fn build_session(app: &AppHandle, mode: &str) -> Result<(), String> {
     cleanup_old_temp(&tmp);
     let sid = uuid::Uuid::new_v4().simple().to_string();
 
+    let demo = crate::demo::take_scene(); // None unless a debug-build demo scene was prepared
     let monitors = xcap::Monitor::all().map_err(|e| e.to_string())?;
-    let key_monitor = monitor_under_cursor(&monitors).and_then(|m| m.id().ok()).unwrap_or(0);
+    let key_monitor = if demo.is_some() { 1 } else { monitor_under_cursor(&monitors).and_then(|m| m.id().ok()).unwrap_or(0) };
     let primary_h = monitors
         .iter()
         .find(|m| m.is_primary().unwrap_or(false))
@@ -400,11 +403,19 @@ fn build_session(app: &AppHandle, mode: &str) -> Result<(), String> {
         .and_then(|m| m.height().ok())
         .unwrap_or(0) as f64;
 
-    let windows_list = list_windows();
+    let windows_list = match &demo {
+        Some(sc) => sc.windows.clone(),
+        None => list_windows(),
+    };
     let with_cursor = settings::get(app).include_cursor && matches!(mode, "capture" | "window");
 
     // Screenshot + encode every monitor in parallel.
-    let shots: Vec<Shot> = std::thread::scope(|s| {
+    let shots: Vec<Shot> = if let Some(sc) = demo {
+        let png = tmp.join(format!("overlay-{sid}-1.png"));
+        write_png(&sc.image, &png)?;
+        vec![Shot { id: 1, x: 0.0, y: 0.0, w: sc.width, h: sc.height, scale: sc.scale, image: sc.image, png, zoom: sc.zoom }]
+    } else {
+        std::thread::scope(|s| {
         let handles: Vec<_> = monitors
             .iter()
             .map(|m| {
@@ -421,7 +432,7 @@ fn build_session(app: &AppHandle, mode: &str) -> Result<(), String> {
                     }
                     let png = tmp.join(format!("overlay-{sid}-{id}.png"));
                     write_png(&image, &png)?;
-                    Ok(Shot { id, x, y, w, h, scale, image, png })
+                    Ok(Shot { id, x, y, w, h, scale, image, png, zoom: 1.0 })
                 })
             })
             .collect();
@@ -436,20 +447,21 @@ fn build_session(app: &AppHandle, mode: &str) -> Result<(), String> {
                 Err(_) => None,
             })
             .collect()
-    });
+    })
+    };
     if shots.is_empty() {
         return Err("could not capture any monitor".into());
     }
 
     let labels: Vec<String> = shots.iter().map(|s| format!("overlay-{}", s.id)).collect();
-    let layout: Vec<(String, u32, f64, f64, f64, f64, String)> = shots
+    let layout: Vec<(String, u32, f64, f64, f64, f64, String, f64)> = shots
         .iter()
-        .map(|s| (format!("overlay-{}", s.id), s.id, s.x, s.y, s.w, s.h, s.png.to_string_lossy().into_owned()))
+        .map(|s| (format!("overlay-{}", s.id), s.id, s.x, s.y, s.w, s.h, s.png.to_string_lossy().into_owned(), s.zoom))
         .collect();
 
     *session_lock() = Some(Session { mode: mode.to_string(), shots, windows: windows_list, labels: labels.clone(), key_monitor });
 
-    for (label, id, x, y, w, h, png) in layout {
+    for (label, id, x, y, w, h, png, zoom) in layout {
         let query = format!("mode={}&monitor={}&img={}", mode, id, windows::url_encode(&png));
         let win = WebviewWindowBuilder::new(app, &label, WebviewUrl::App(format!("overlay.html?{query}").into()))
             .title("CaptureME overlay")
@@ -464,10 +476,13 @@ fn build_session(app: &AppHandle, mode: &str) -> Result<(), String> {
             .accept_first_mouse(true)
             .visible_on_all_workspaces(true)
             .position(x, y)
-            .inner_size(w, h)
+            .inner_size(w * zoom, h * zoom)
             .build()
             .map_err(|e| e.to_string())?;
-        style_window(app, &win, Some((x, primary_h - (y + h), w, h)), None);
+        if zoom != 1.0 {
+            let _ = win.set_zoom(zoom);
+        }
+        style_window(app, &win, Some((x, primary_h - (y + h * zoom), w * zoom, h * zoom)), None);
         let a = app.clone();
         win.on_window_event(move |ev| {
             // Closed by some other means (Cmd+W, crash…) → end the session.
