@@ -1,6 +1,6 @@
 //! Global shortcuts. Owner: Agent A.
 //! Registers `settings.hotkeys` (action -> accelerator) and re-registers on `settings-changed`.
-use crate::{capture, recording, settings, windows};
+use crate::{capture, import, recording, settings, windows};
 use tauri::{AppHandle, Listener};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
@@ -36,7 +36,8 @@ fn register_all(app: &AppHandle) {
     }
 }
 
-/// Run a hotkey/tray action: region, window, fullscreen, delayed, scroll, record, ocr, history.
+/// Run a hotkey/tray action: region, window, fullscreen, delayed, repeat, scroll, record, ocr, pin,
+/// color, measure, qr, clipboard, open_file, history.
 pub fn run_action(app: &AppHandle, action: &str) {
     match action {
         "region" => capture::start_region(app),
@@ -49,7 +50,21 @@ pub fn run_action(app: &AppHandle, action: &str) {
                 capture::start_overlay(app, "record");
             }
         }
+        "record_full" => recording::start_display(app),
+        "record_window" => {
+            if !recording::stop_if_recording(app) {
+                capture::start_overlay(app, "record-window");
+            }
+        }
+        "recordings" => crate::video::open_recordings(app),
         "ocr" => capture::start_overlay(app, "ocr"),
+        "repeat" => capture::repeat_last(app),
+        "pin" => capture::start_overlay(app, "pin"),
+        "color" => capture::start_overlay(app, "color"),
+        "measure" => capture::start_overlay(app, "measure"),
+        "qr" => capture::start_overlay(app, "qr"),
+        "clipboard" => import::annotate_clipboard(app),
+        "open_file" => import::open_image_dialog(app),
         "history" => {
             if let Err(e) = windows::open_history(app) {
                 log::error!("open history: {e}");

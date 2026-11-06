@@ -25,3 +25,5 @@ h1 { margin: 4px 0 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em
 kbd { display: inline-block; min-width: 22px; padding: 2px 6px; margin-left: 3px; text-align: center; border-radius: 5px; background: #3a3a3f; border: 1px solid #4a4a50; border-bottom-width: 2px; font: 600 12px ui-monospace, "SF Mono", Menlo, monospace; color: #f2f2f2; }
 .hintline { color: var(--muted); font-size: 12px; }
 .footer { display: flex; justify-content: flex-end; }
+.ob-btn:focus-visible, .seg button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.card.privacy p.license { font-size: 12px; }

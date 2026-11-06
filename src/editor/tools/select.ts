@@ -1,7 +1,7 @@
 import { st, selected, setSelection, touch, kscale } from "../state";
 import { hitTest, rectFrom, bounds } from "../geom";
 import { toScreen } from "../viewport";
-import { duplicateSelected } from "../ops";
+import { duplicateSelected, expandGroups } from "../ops";
 import { beginEdit } from "../textedit";
 import { Manipulator, hitHandle, HANDLE_CURSOR } from "./manip";
 import { ACCENT } from "../overlay";
@@ -25,10 +25,11 @@ export class SelectTool implements Tool {
     const hit = topHit(e.p);
     if (hit) {
       const inSel = st.selection.includes(hit.id);
+      const members = expandGroups([hit.id]); // clicking one member selects its whole group
       if (e.shift) {
-        if (inSel) { setSelection(st.selection.filter((i) => i !== hit.id)); return; }
-        setSelection([...st.selection, hit.id]);
-      } else if (!inSel) setSelection([hit.id]);
+        if (inSel) { setSelection(st.selection.filter((i) => !members.includes(i))); return; }
+        setSelection([...new Set([...st.selection, ...members])]);
+      } else if (!inSel) setSelection(members);
       if (e.alt) duplicateSelected(0);
       this.m.beginMove(e);
       return;
@@ -45,7 +46,7 @@ export class SelectTool implements Tool {
         const b = bounds(o);
         return b.x <= r.x + r.w && b.x + b.w >= r.x && b.y <= r.y + r.h && b.y + b.h >= r.y;
       }).map((o) => o.id);
-      setSelection([...new Set([...this.marquee.base, ...ids])]);
+      setSelection(expandGroups([...new Set([...this.marquee.base, ...ids])]));
       touch();
     }
   }
@@ -57,11 +58,11 @@ export class SelectTool implements Tool {
     const h = hitHandle(e.sx, e.sy);
     if (h) return HANDLE_CURSOR[h.id];
     const hit = topHit(e.p);
-    return hit ? (st.selection.includes(hit.id) ? "move" : "pointer") : "default";
+    return hit ? (st.selection.includes(hit.id) && !hit.locked ? "move" : "pointer") : "default";
   }
   dblclick(e: PEvt) {
     const hit = topHit(e.p);
-    if (hit && hit.type === "text") beginEdit(hit);
+    if (hit && (hit.type === "text" || hit.type === "callout") && !hit.locked) beginEdit(hit);
   }
   overlay(ctx: CanvasRenderingContext2D) {
     if (!this.marquee) return;

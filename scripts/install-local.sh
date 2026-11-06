@@ -31,12 +31,16 @@ die()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 PRODUCT="$(node -p "require('./src-tauri/tauri.conf.json').productName" 2>/dev/null || echo CaptureME)"
 APP="src-tauri/target/release/bundle/macos/$PRODUCT.app"
+# prefer the newest of: native build, universal build (scripts/build-installer.sh)
+UAPP="src-tauri/target/universal-apple-darwin/release/bundle/macos/$PRODUCT.app"
+if [[ -d "$UAPP" && ( ! -d "$APP" || "$UAPP" -nt "$APP" ) ]]; then APP="$UAPP"; fi
 
 if [[ $REBUILD -eq 1 || ! -d "$APP" ]]; then
   for bin in cargo node npm; do command -v "$bin" >/dev/null || die "'$bin' not found"; done
   say "Building $PRODUCT.app"
   [[ -d node_modules ]] || npm ci
   npm run tauri build -- --bundles app
+  APP="src-tauri/target/release/bundle/macos/$PRODUCT.app"
 fi
 [[ -d "$APP" ]] || die "app bundle not found: $APP"
 
@@ -59,6 +63,8 @@ if [[ $RESET -eq 1 ]]; then
   tccutil reset ScreenCapture "$BUNDLE_ID" || true
   tccutil reset Accessibility "$BUNDLE_ID" || true
   tccutil reset Microphone "$BUNDLE_ID" || true
+  tccutil reset Camera "$BUNDLE_ID" || true
+  tccutil reset ListenEvent "$BUNDLE_ID" || true
 fi
 
 cat <<MSG
@@ -69,6 +75,8 @@ Reminder – grant these in System Settings ▸ Privacy & Security:
   • Screen & System Audio Recording → enable CaptureME   (required for every capture)
   • Accessibility                    → only for "auto-scroll" in scrolling capture
   • Microphone                       → only when recording with the microphone
+  • Camera                           → only for the webcam bubble in recordings
+  • Input Monitoring                 → only for "show pressed keys" in recordings
 If captures are blank/black after re-installing, run:
   scripts/install-local.sh --reset-permissions
 then re-enable Screen Recording and restart the app.

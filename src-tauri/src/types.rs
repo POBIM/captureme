@@ -26,9 +26,57 @@ pub struct Settings {
     pub play_sound: bool,
     pub launch_at_login: bool,
     pub history_limit: u32,
-    /// action -> accelerator. Actions: region, window, fullscreen, delayed, scroll, record, ocr, history
+    /// action -> accelerator ("" = disabled). Actions: region, window, fullscreen, delayed, repeat,
+    /// scroll, record, ocr, pin, color, measure, qr, clipboard, history
     pub hotkeys: HashMap<String, String>,
+    // ---- Round 2 (Agent E) – additive fields ----
+    /// What happens after a capture: "editor" | "thumbnail" | "copy" | "save".
+    pub after_capture: String,
+    /// Seconds the floating thumbnail stays on screen (0 = until dismissed).
+    pub thumbnail_seconds: u32,
+    /// Colour picker output format: "hex" | "rgb" | "hsl".
+    pub color_format: String,
+    /// Draw the mouse cursor into region / window / fullscreen captures.
+    pub include_cursor: bool,
+    /// Window snapping keeps the macOS drop shadow (transparent padding) around the window.
+    pub window_shadow: bool,
+    /// Version of the default-hotkey set the stored hotkeys were migrated to.
+    pub hotkeys_version: u32,
 }
+
+/// Bump when the default hotkeys change (see `settings::load` for the migration).
+pub const HOTKEY_VERSION: u32 = 2;
+
+/// The hotkey defaults shipped before `hotkeys_version` existed (they clash with macOS ⌘⇧3/4/5).
+pub const LEGACY_HOTKEYS: &[(&str, &str)] = &[
+    ("region", "CmdOrCtrl+Shift+2"),
+    ("window", "CmdOrCtrl+Shift+3"),
+    ("fullscreen", "CmdOrCtrl+Shift+1"),
+    ("delayed", "CmdOrCtrl+Shift+6"),
+    ("scroll", "CmdOrCtrl+Shift+7"),
+    ("record", "CmdOrCtrl+Shift+8"),
+    ("ocr", "CmdOrCtrl+Shift+9"),
+    ("history", "CmdOrCtrl+Shift+0"),
+];
+
+/// Default hotkeys: ⌃⇧ + digit/letter – none of these collide with the macOS screenshot
+/// shortcuts (⌘⇧3 / ⌘⇧4 / ⌘⇧5 / ⌘⇧6).
+pub const DEFAULT_HOTKEYS: &[(&str, &str)] = &[
+    ("fullscreen", "Ctrl+Shift+1"),
+    ("region", "Ctrl+Shift+2"),
+    ("window", "Ctrl+Shift+3"),
+    ("repeat", "Ctrl+Shift+4"),
+    ("delayed", "Ctrl+Shift+5"),
+    ("scroll", "Ctrl+Shift+6"),
+    ("record", "Ctrl+Shift+7"),
+    ("ocr", "Ctrl+Shift+8"),
+    ("history", "Ctrl+Shift+9"),
+    ("pin", "Ctrl+Shift+P"),
+    ("color", "Ctrl+Shift+C"),
+    ("measure", "Ctrl+Shift+M"),
+    ("qr", "Ctrl+Shift+Q"),
+    ("clipboard", "Ctrl+Shift+V"),
+];
 
 impl Default for Settings {
     fn default() -> Self {
@@ -36,17 +84,8 @@ impl Default for Settings {
             .or_else(dirs::desktop_dir)
             .map(|p| p.join("CaptureME").to_string_lossy().into_owned())
             .unwrap_or_default();
-        let hotkeys = [
-            ("region", "CmdOrCtrl+Shift+2"),
-            ("window", "CmdOrCtrl+Shift+3"),
-            ("fullscreen", "CmdOrCtrl+Shift+1"),
-            ("delayed", "CmdOrCtrl+Shift+6"),
-            ("scroll", "CmdOrCtrl+Shift+7"),
-            ("record", "CmdOrCtrl+Shift+8"),
-            ("ocr", "CmdOrCtrl+Shift+9"),
-            ("history", "CmdOrCtrl+Shift+0"),
-        ]
-        .into_iter()
+        let hotkeys = DEFAULT_HOTKEYS
+        .iter()
         .map(|(a, b)| (a.to_string(), b.to_string()))
         .collect();
         Self {
@@ -61,6 +100,12 @@ impl Default for Settings {
             launch_at_login: false,
             history_limit: 200,
             hotkeys,
+            after_capture: "editor".into(),
+            thumbnail_seconds: 6,
+            color_format: "hex".into(),
+            include_cursor: false,
+            window_shadow: true,
+            hotkeys_version: HOTKEY_VERSION,
         }
     }
 }
@@ -108,4 +153,4 @@ pub struct SelectionRect {
 }
 
 /// Overlay modes. The overlay window is opened by capture.rs with `?mode=<mode>`.
-pub const OVERLAY_MODES: &[&str] = &["capture", "ocr", "pin", "scroll", "record"];
+pub const OVERLAY_MODES: &[&str] = &["capture", "window", "ocr", "pin", "scroll", "record", "color", "measure", "qr"];

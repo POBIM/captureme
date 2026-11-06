@@ -3,9 +3,10 @@ import { commit } from "../history";
 import { addObject, newObj, stepObj } from "../ops";
 import { defaultCp, dist, rectFrom, clone } from "../geom";
 import { Manipulator, hitHandle, HANDLE_CURSOR } from "./manip";
-import type { Obj, PEvt, Pt, Tool, ToolId, ArrowObj, LineObj, BoxObj, PenObj, TextObj, StepObj, StampObj } from "../types";
+import type { Obj, PEvt, Pt, Tool, ToolId, ArrowObj, LineObj, BoxObj, PenObj, TextObj, StepObj, StampObj, CalloutObj } from "../types";
 import { beginEdit } from "../textedit";
 import { topHit } from "./select";
+import { toScreen } from "../viewport";
 
 function snap45(from: Pt, p: Pt): Pt {
   const dx = p.x - from.x, dy = p.y - from.y, l = Math.hypot(dx, dy);
@@ -22,7 +23,7 @@ abstract class BaseTool {
   }
 }
 
-type ShapeType = "arrow" | "line" | "rect" | "ellipse" | "blur" | "pixelate" | "spotlight" | "magnify";
+type ShapeType = "arrow" | "line" | "measure" | "rect" | "ellipse" | "blur" | "pixelate" | "spotlight" | "magnify" | "redact" | "marker" | "underline";
 
 export class ShapeTool extends BaseTool implements Tool {
   private cur: Obj | null = null;
@@ -39,7 +40,7 @@ export class ShapeTool extends BaseTool implements Tool {
     const p = this.start;
     let o: Obj;
     if (t === "arrow") o = newObj("arrow", { a: { ...p }, b: { ...p }, cp: { ...p } });
-    else if (t === "line") o = newObj("line", { a: { ...p }, b: { ...p } });
+    else if (t === "line" || t === "measure") o = newObj(t, { a: { ...p }, b: { ...p } });
     else o = newObj(t, { x: p.x, y: p.y, w: 0, h: 0 });
     this.cur = o;
     addObject(o);
@@ -51,7 +52,7 @@ export class ShapeTool extends BaseTool implements Tool {
       this.create();
     }
     const o = this.cur!;
-    if (o.type === "arrow" || o.type === "line") {
+    if (o.type === "arrow" || o.type === "line" || o.type === "measure") {
       const b = e.shift ? snap45(this.start, e.p) : e.p;
       (o as ArrowObj | LineObj).b = { ...b };
       if (o.type === "arrow") o.cp = defaultCp(o.a, o.b, o.s.arrowStyle === "curved");
@@ -65,6 +66,7 @@ export class ShapeTool extends BaseTool implements Tool {
       const a = e.alt ? { x: this.start.x - dx, y: this.start.y - dy } : this.start;
       const r = rectFrom(a, { x: this.start.x + dx, y: this.start.y + dy });
       b.x = r.x; b.y = r.y; b.w = r.w; b.h = r.h;
+      if (b.type === "magnify" && b.s.leader) b.sc = { x: r.x + r.w / 2 - r.w * 1.15, y: r.y + r.h / 2 };
     }
     touch();
   }
@@ -72,7 +74,8 @@ export class ShapeTool extends BaseTool implements Tool {
     if (this.m.active) { this.m.end(); return; }
     if (this.cur) { this.cur = null; commit(); return; }
     if (this.id === "magnify" && Math.hypot(e.sx - this.sx, e.sy - this.sy) < 3) {
-      const o = newObj("magnify", { x: e.p.x - 90, y: e.p.y - 90, w: 180, h: 180 });
+      const o = newObj("magnify", { x: e.p.x - 90, y: e.p.y - 90, w: 180, h: 180 }) as BoxObj;
+      if (o.s.leader) o.sc = { x: o.x + 90 - 180 * 1.15, y: o.y + 90 };
       addObject(o); commit();
     }
   }
@@ -163,7 +166,7 @@ export class TextTool extends BaseTool implements Tool {
   down(e: PEvt) {
     if (this.m.beginHandle(e)) return;
     const hit = topHit(e.p);
-    if (hit && hit.type === "text") { beginEdit(hit); return; }
+    if (hit && hit.type === "text" && !hit.locked) { beginEdit(hit); return; }
     const o = newObj("text", { x: e.p.x, y: e.p.y, text: "" }) as TextObj;
     o.y = e.p.y - o.s.fontSize * 0.7;
     st.objects.push(o);
@@ -174,3 +177,43 @@ export class TextTool extends BaseTool implements Tool {
   up() { this.m.end(); }
 }
 void clone;
+
+/** Speech bubble: click = bubble next to the click, drag = tail tip at the press point and bubble at the release point. */
+export class CalloutTool extends BaseTool implements Tool {
+  id = "callout" as const;
+  private start: Pt | null = null;
+  private cur: Pt | null = null;
+  down(e: PEvt) {
+    if (this.m.beginHandle(e)) return;
+    const hit = topHit(e.p);
+    if (hit && hit.type === "callout" && !hit.locked) { beginEdit(hit); return; }
+    this.start = e.p; this.cur = e.p;
+  }
+  move(e: PEvt) {
+    if (this.m.active) { this.m.move(e); return; }
+    if (this.start) { this.cur = e.p; touch(); }
+  }
+  up(e: PEvt) {
+    if (this.m.active) { this.m.end(); return; }
+    const s = this.start; this.start = null; this.cur = null;
+    if (!s) return;
+    const dragged = dist(s, e.p) * kscale() > 6;
+    const o = newObj("callout", { x: 0, y: 0, text: "", tail: { ...s } }) as CalloutObj;
+    const fs = o.s.fontSize;
+    if (dragged) { o.x = e.p.x; o.y = e.p.y - fs * 0.9; }
+    else { o.x = s.x + fs * 1.2; o.y = s.y - fs * 3.6; }
+    st.objects.push(o);
+    setSelection([o.id]);
+    beginEdit(o);
+  }
+  overlay(ctx: CanvasRenderingContext2D) {
+    if (!this.start || !this.cur) return;
+    const a = toScreen(this.start), b = toScreen(this.cur);
+    ctx.save();
+    ctx.strokeStyle = "#4da3ff"; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = "#4da3ff";
+    ctx.beginPath(); ctx.arc(a.x, a.y, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}

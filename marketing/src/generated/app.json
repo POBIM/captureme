@@ -1,0 +1,92 @@
+{
+  "version": "0.1.0",
+  "minMacOS": "14.0",
+  "hotkeys": {
+    "fullscreen": "Ctrl+Shift+1",
+    "region": "Ctrl+Shift+2",
+    "window": "Ctrl+Shift+3",
+    "repeat": "Ctrl+Shift+4",
+    "delayed": "Ctrl+Shift+5",
+    "scroll": "Ctrl+Shift+6",
+    "record": "Ctrl+Shift+7",
+    "ocr": "Ctrl+Shift+8",
+    "history": "Ctrl+Shift+9",
+    "pin": "Ctrl+Shift+P",
+    "color": "Ctrl+Shift+C",
+    "measure": "Ctrl+Shift+M",
+    "qr": "Ctrl+Shift+Q",
+    "clipboard": "Ctrl+Shift+V"
+  },
+  "shortcuts": {
+    "fullscreen": [
+      "⌃",
+      "⇧",
+      "1"
+    ],
+    "region": [
+      "⌃",
+      "⇧",
+      "2"
+    ],
+    "window": [
+      "⌃",
+      "⇧",
+      "3"
+    ],
+    "repeat": [
+      "⌃",
+      "⇧",
+      "4"
+    ],
+    "delayed": [
+      "⌃",
+      "⇧",
+      "5"
+    ],
+    "scroll": [
+      "⌃",
+      "⇧",
+      "6"
+    ],
+    "record": [
+      "⌃",
+      "⇧",
+      "7"
+    ],
+    "ocr": [
+      "⌃",
+      "⇧",
+      "8"
+    ],
+    "history": [
+      "⌃",
+      "⇧",
+      "9"
+    ],
+    "pin": [
+      "⌃",
+      "⇧",
+      "P"
+    ],
+    "color": [
+      "⌃",
+      "⇧",
+      "C"
+    ],
+    "measure": [
+      "⌃",
+      "⇧",
+      "M"
+    ],
+    "qr": [
+      "⌃",
+      "⇧",
+      "Q"
+    ],
+    "clipboard": [
+      "⌃",
+      "⇧",
+      "V"
+    ]
+  }
+}

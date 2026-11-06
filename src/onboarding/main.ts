@@ -2,14 +2,15 @@
 import "./onboarding.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { api, Settings } from "../shared/api";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { api, HOTKEY_ACTIONS, REPO_URL, Settings } from "../shared/api";
 import { getLang, setLang, t } from "../shared/i18n";
 
 const app = document.getElementById("app")!;
 let settings: Settings | null = null;
 let granted = false;
 
-const ACTIONS = ["region", "window", "fullscreen", "delayed", "scroll", "record", "ocr", "history"];
+const ACTIONS: readonly string[] = HOTKEY_ACTIONS;
 
 /** "CmdOrCtrl+Shift+2" → ⌘ ⇧ 2 */
 function keycaps(accel: string): string {
@@ -58,6 +59,13 @@ function render() {
       <p class="hintline">${t("ob.keys.hint")}</p>
     </section>
 
+    <section class="card privacy">
+      <h2><span>${t("more.about.privacyTitle")}</span></h2>
+      <p>${t("more.about.privacy")}</p>
+      <p class="license">${t("more.about.licenseShort")}</p>
+      <div class="row"><button class="ob-btn" id="repoBtn">${t("more.about.repo")}</button></div>
+    </section>
+
     <p class="hintline">${t("ob.tip")}</p>
     <div class="footer"><button class="ob-btn primary big" id="startBtn">${t("ob.start")}</button></div>`;
 
@@ -79,6 +87,7 @@ function render() {
   });
   $("openBtn").addEventListener("click", () => invoke("open_screen_permission_settings"));
   $("restartBtn").addEventListener("click", () => invoke("relaunch_app"));
+  $("repoBtn").addEventListener("click", () => openUrl(REPO_URL).catch(() => {}));
   $("startBtn").addEventListener("click", () => invoke("onboarding_complete"));
 }
 

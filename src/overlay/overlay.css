@@ -42,3 +42,29 @@ body.countdown, body.countdown #app { cursor: default; }
 .cd { position: absolute; inset: 8px; border-radius: 50%; display: grid; place-items: center; background: rgba(20, 20, 22, 0.82); border: 2px solid rgba(255, 255, 255, 0.2); color: #fff; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); }
 .cd b { font: 700 64px/1 ui-rounded, system-ui, sans-serif; }
 .cd small { position: absolute; bottom: 20px; font-size: 10px; color: #b4b4bc; }
+
+/* ---- presets bar (aspect lock / fixed sizes) ---- */
+#presets { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 10px; background: rgba(28, 28, 30, 0.9); border: 1px solid rgba(255, 255, 255, 0.14); color: #eee; cursor: default; transition: opacity 0.15s; max-width: 96vw; flex-wrap: wrap; justify-content: center; }
+#presets.faded { opacity: 0; pointer-events: none; }
+#presets button { all: unset; box-sizing: border-box; padding: 4px 9px; border-radius: 7px; cursor: pointer; font-size: 11.5px; white-space: nowrap; }
+#presets button:hover { background: rgba(255, 255, 255, 0.14); }
+#presets button.on { background: var(--accent); color: #fff; }
+#presets button:focus-visible, #toolbar button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+#presets .sep { width: 1px; height: 16px; background: rgba(255, 255, 255, 0.18); margin: 0 3px; }
+#presets .custom { display: inline-flex; align-items: center; gap: 4px; }
+#presets input { width: 62px; padding: 3px 5px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.25); background: #111; color: #fff; font: inherit; user-select: text; -webkit-user-select: text; }
+
+/* ---- colour picker + pixel ruler ---- */
+body.tool-color, body.tool-color #app { cursor: crosshair; }
+#cloupe { position: absolute; display: none; width: 165px; pointer-events: none; border-radius: 12px; overflow: hidden; background: rgba(20, 20, 22, 0.95); border: 1px solid rgba(255, 255, 255, 0.28); box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5); color: #fff; font: 12px ui-monospace, "SF Mono", Menlo, monospace; }
+#cloupe canvas { display: block; width: 165px; height: 165px; image-rendering: pixelated; }
+#cloupe .meta { padding: 5px 8px 6px; display: grid; gap: 2px; }
+#cloupe .hex { display: flex; align-items: center; gap: 7px; font-weight: 600; }
+#cloupe .sw { width: 13px; height: 13px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.5); flex: none; }
+#cloupe .xy { color: #a8a8b0; font-size: 11px; }
+#flash { position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%); padding: 7px 14px; border-radius: 999px; background: rgba(20, 20, 22, 0.92); color: #fff; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+#flash.show { opacity: 1; }
+body.tool-measure, body.tool-measure #app { cursor: crosshair; }
+#mdim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.12); pointer-events: none; }
+.mbox { position: absolute; display: none; pointer-events: none; border: 1px solid #ff3b30; background: rgba(255, 59, 48, 0.12); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6); }
+.mbox.pinned { border-color: #0a84ff; background: rgba(10, 132, 255, 0.14); }

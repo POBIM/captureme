@@ -1,0 +1,34 @@
+{
+  "name": "captureme-marketing",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CaptureME poster + tutorial video (Remotion). Separate from the app.",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "qr": "node scripts/gen-qr.mjs",
+    "sync": "node scripts/sync-from-app.mjs && node scripts/gen-qr.mjs",
+    "still:poster": "remotion still src/index.ts Poster out/poster-a3.png --scale=3 --image-format=png",
+    "render:posters": "node scripts/render-posters.mjs",
+    "render:video": "remotion render src/index.ts Tutorial out/captureme-tutorial.mp4 --codec=h264 --crf=18",
+    "render:short": "remotion render src/index.ts Short out/captureme-short-9x16.mp4 --codec=h264 --crf=18",
+    "render": "npm run render:posters && npm run render:video && npm run render:short",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-sans-thai": "^5.1.0",
+    "@remotion/cli": "4.0.290",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.290"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.7",
+    "esbuild": "^0.25.12",
+    "lucide-react": "^1.69.0",
+    "typescript": "^5.6.0"
+  }
+}

@@ -3,6 +3,7 @@ import { commit } from "./history";
 import { t } from "../shared/i18n";
 import { toast } from "./toast";
 import { resizeImage, resizeCanvas } from "./resize";
+import { addPadding } from "./transform";
 import { saveBg } from "./state";
 import { GRADIENTS } from "./render";
 import { fit } from "./viewport";
@@ -30,6 +31,7 @@ export function modal(title: string, body: HTMLElement, buttons: Btn[]): { close
     window.removeEventListener("keydown", onKey, true);
   };
   const onKey = (e: KeyboardEvent) => {
+    if (e.isComposing || e.keyCode === 229) return; // IME composition: Enter / Esc belong to the IME
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
     else if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
       const primary = buttons.find((b) => b.primary);
@@ -68,12 +70,12 @@ export function showOcr(text: string) {
   ta.focus(); ta.select();
 }
 
-function numInput(v: number, min = 1, max = 30000): HTMLInputElement {
+export function numInput(v: number, min = 1, max = 30000): HTMLInputElement {
   const i = document.createElement("input");
   i.type = "number"; i.min = String(min); i.max = String(max); i.value = String(Math.round(v)); i.className = "num";
   return i;
 }
-function row(label: string, ...els: Node[]): HTMLElement {
+export function row(label: string, ...els: Node[]): HTMLElement {
   const r = document.createElement("div"); r.className = "row";
   const l = document.createElement("label"); l.textContent = label;
   r.append(l, ...els);
@@ -141,65 +143,121 @@ export function showResizeDialog() {
   ]);
 }
 
-/* ---------- background beautifier popover ---------- */
-export function toggleBgPanel(anchor: HTMLElement) {
-  const existing = document.querySelector(".popover.bg-panel");
-  if (existing) { existing.remove(); return; }
+/* ---------- popovers ---------- */
+let activePop: { anchor: HTMLElement; close: () => void } | null = null;
+export function closePopover() { activePop?.close(); }
+/** Open (or toggle off) a floating panel under `anchor`. Closes on outside click / Escape; no listener leaks. */
+export function openPopover(anchor: HTMLElement, cls: string, build: (pop: HTMLElement, close: () => void) => void): HTMLElement | null {
+  if (activePop && activePop.anchor === anchor) { activePop.close(); return null; }
+  activePop?.close();
   const pop = document.createElement("div");
-  pop.className = "popover bg-panel";
+  pop.className = `popover ${cls}`;
+  let closed = false;
+  const onDown = (e: MouseEvent) => {
+    const tg = e.target as Node;
+    if (!pop.contains(tg) && !anchor.contains(tg)) close();
+  };
+  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !e.isComposing) { e.preventDefault(); e.stopPropagation(); close(); } };
+  const close = () => {
+    if (closed) return; closed = true;
+    window.removeEventListener("mousedown", onDown, true);
+    window.removeEventListener("keydown", onKey, true);
+    pop.remove();
+    if (activePop?.anchor === anchor) activePop = null;
+  };
+  build(pop, close);
+  document.body.appendChild(pop);
   const r = anchor.getBoundingClientRect();
   pop.style.top = `${r.bottom + 6}px`;
-  pop.style.right = `${Math.max(8, window.innerWidth - r.right - 60)}px`;
+  pop.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8))}px`;
+  pop.style.maxHeight = `${window.innerHeight - r.bottom - 16}px`;
+  setTimeout(() => { if (!closed) window.addEventListener("mousedown", onDown, true); }, 0);
+  window.addEventListener("keydown", onKey, true);
+  activePop = { anchor, close };
+  return pop;
+}
 
-  const apply = (final: boolean, refit = false) => {
-    saveBg();
-    touch();
-    if (refit) fit();
-    if (final) commit(); else emit("view");
-  };
+/* ---------- background beautifier popover ---------- */
+export function toggleBgPanel(anchor: HTMLElement) {
+  openPopover(anchor, "bg-panel", (pop) => {
+    const apply = (final: boolean, refit = false) => {
+      saveBg();
+      touch();
+      if (refit) fit();
+      if (final) commit(); else emit("view");
+    };
 
-  const mkRange = (label: string, min: number, max: number, val: number, set: (v: number) => void, refit = false) => {
-    const rg = document.createElement("input"); rg.type = "range"; rg.min = String(min); rg.max = String(max); rg.value = String(val);
-    const out = document.createElement("span"); out.className = "val"; out.textContent = String(val);
-    rg.oninput = () => { set(+rg.value); out.textContent = rg.value; apply(false, refit && false); };
-    rg.onchange = () => { apply(true, refit); rg.blur(); };
-    return row(label, rg, out);
-  };
-  const en = document.createElement("input"); en.type = "checkbox"; en.checked = st.bg.enabled;
-  const enL = document.createElement("label"); enL.className = "chk"; enL.append(en, document.createTextNode(" " + t("editor.bg.enable")));
-  en.onchange = () => { st.bg.enabled = en.checked; apply(true, true); };
+    const mkRange = (label: string, min: number, max: number, val: number, set: (v: number) => void, refit = false) => {
+      const rg = document.createElement("input"); rg.type = "range"; rg.min = String(min); rg.max = String(max); rg.value = String(val);
+      const out = document.createElement("span"); out.className = "val"; out.textContent = String(val);
+      rg.oninput = () => { set(+rg.value); out.textContent = rg.value; apply(false); };
+      rg.onchange = () => { apply(true, refit); rg.blur(); };
+      return row(label, rg, out);
+    };
+    const en = document.createElement("input"); en.type = "checkbox"; en.checked = st.bg.enabled;
+    const enL = document.createElement("label"); enL.className = "chk"; enL.append(en, document.createTextNode(" " + t("editor.bg.enable")));
+    en.onchange = () => { st.bg.enabled = en.checked; apply(true, true); };
 
-  const grads = document.createElement("div"); grads.className = "grads";
-  const sw: HTMLElement[] = [];
-  GRADIENTS.forEach(([a, b], i) => {
-    const g = document.createElement("button");
-    g.style.background = `linear-gradient(135deg, ${a}, ${b})`;
-    g.onclick = () => { st.bg.mode = "gradient"; st.bg.gradient = i; if (!st.bg.enabled) { st.bg.enabled = true; en.checked = true; } sync(); apply(true, true); };
-    sw.push(g); grads.appendChild(g);
+    const grads = document.createElement("div"); grads.className = "grads";
+    const sw: HTMLElement[] = [];
+    const sync = () => sw.forEach((g, i) => g.classList.toggle("on", st.bg.mode === "gradient" && st.bg.gradient === i));
+    GRADIENTS.forEach(([a, b], i) => {
+      const g = document.createElement("button");
+      g.style.background = `linear-gradient(135deg, ${a}, ${b})`;
+      g.onclick = () => { st.bg.mode = "gradient"; st.bg.gradient = i; if (!st.bg.enabled) { st.bg.enabled = true; en.checked = true; } sync(); apply(true, true); };
+      sw.push(g); grads.appendChild(g);
+    });
+    const solid = document.createElement("input"); solid.type = "color"; solid.value = st.bg.color;
+    solid.oninput = () => { st.bg.mode = "solid"; st.bg.color = solid.value; if (!st.bg.enabled) { st.bg.enabled = true; en.checked = true; } sync(); apply(false); };
+    solid.onchange = () => apply(true, true);
+    grads.appendChild(solid);
+    sync();
+
+    const sh = document.createElement("input"); sh.type = "checkbox"; sh.checked = st.bg.shadow;
+    const shL = document.createElement("label"); shL.className = "chk"; shL.append(sh, document.createTextNode(" " + t("editor.bg.shadow")));
+    sh.onchange = () => { st.bg.shadow = sh.checked; apply(true); };
+
+    pop.append(
+      row("", enL),
+      mkRange(t("editor.bg.padding"), 0, 240, st.bg.padding, (v) => (st.bg.padding = v), true),
+      row(t("editor.bg.background"), grads),
+      mkRange(t("editor.bg.radius"), 0, 80, st.bg.radius, (v) => (st.bg.radius = v)),
+      row("", shL),
+    );
   });
-  const solid = document.createElement("input"); solid.type = "color"; solid.value = st.bg.color;
-  solid.oninput = () => { st.bg.mode = "solid"; st.bg.color = solid.value; if (!st.bg.enabled) { st.bg.enabled = true; en.checked = true; } sync(); apply(false); };
-  solid.onchange = () => apply(true, true);
-  grads.appendChild(solid);
-  const sync = () => sw.forEach((g, i) => g.classList.toggle("on", st.bg.mode === "gradient" && st.bg.gradient === i));
-  sync();
+}
 
-  const sh = document.createElement("input"); sh.type = "checkbox"; sh.checked = st.bg.shadow;
-  const shL = document.createElement("label"); shL.className = "chk"; shL.append(sh, document.createTextNode(" " + t("editor.bg.shadow")));
-  sh.onchange = () => { st.bg.shadow = sh.checked; apply(true); };
-
-  pop.append(
-    row("", enL),
-    mkRange(t("editor.bg.padding"), 0, 240, st.bg.padding, (v) => (st.bg.padding = v), true),
-    row(t("editor.bg.background"), grads),
-    mkRange(t("editor.bg.radius"), 0, 80, st.bg.radius, (v) => (st.bg.radius = v)),
-    row("", shL),
+/* ---------- padding & border (baked into the pixels, no gradient/shadow) ---------- */
+const PAD_LS = "captureme.editor.pad.v1";
+export function showPaddingDialog() {
+  const d = { pad: 32, padColor: "#ffffff", transparent: false, border: 0, borderColor: "#000000" };
+  try { Object.assign(d, JSON.parse(localStorage.getItem(PAD_LS) || "{}")); } catch { /* ignore */ }
+  const body = document.createElement("div");
+  const pad = numInput(d.pad, 0, 2000), border = numInput(d.border, 0, 200);
+  const pc = document.createElement("input"); pc.type = "color"; pc.value = d.padColor;
+  const tr = document.createElement("input"); tr.type = "checkbox"; tr.checked = d.transparent;
+  const trL = document.createElement("label"); trL.className = "chk"; trL.append(tr, document.createTextNode(" " + t("editor.resize.transparent")));
+  const bc = document.createElement("input"); bc.type = "color"; bc.value = d.borderColor;
+  const note = document.createElement("div"); note.className = "phint"; note.textContent = t("editor.pad.note");
+  body.append(
+    row(t("editor.pad.padding"), pad, document.createTextNode("px")),
+    row(t("editor.resize.fill"), pc, trL),
+    row(t("editor.pad.border"), border, document.createTextNode("px")),
+    row(t("editor.pad.borderColor"), bc),
+    note,
   );
-  document.body.appendChild(pop);
-  const close = (e: MouseEvent) => {
-    if (!pop.contains(e.target as Node) && !anchor.contains(e.target as Node)) { pop.remove(); window.removeEventListener("mousedown", close, true); }
-  };
-  setTimeout(() => window.addEventListener("mousedown", close, true), 0);
-  const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { pop.remove(); window.removeEventListener("keydown", esc, true); } };
-  window.addEventListener("keydown", esc, true);
+  modal(t("editor.pad.title"), body, [
+    { label: t("editor.cancel") },
+    {
+      label: t("editor.apply"), primary: true,
+      onClick: () => {
+        const v = { pad: +pad.value || 0, padColor: pc.value, transparent: tr.checked, border: +border.value || 0, borderColor: bc.value };
+        const t2 = v.pad + v.border;
+        if (t2 <= 0) return;
+        if ((st.base.width + 2 * t2) > 16000 || (st.base.height + 2 * t2) > 16000) { toast(t("editor.resize.invalid"), "error"); return false; }
+        try { localStorage.setItem(PAD_LS, JSON.stringify(v)); } catch { /* ignore */ }
+        addPadding(v.pad, v.transparent ? null : v.padColor, v.border, v.borderColor);
+      },
+    },
+  ]);
 }

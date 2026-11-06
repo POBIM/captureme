@@ -5,10 +5,11 @@ import { capture } from "../i18n/capture";
 import { editor } from "../i18n/editor";
 import { tools } from "../i18n/tools";
 import { extras } from "../i18n/extras";
+import { more } from "../i18n/more";
 
 export type Lang = "th" | "en";
 type Dict = Record<string, { th: string; en: string }>;
-const dict: Dict = { ...common, ...capture, ...editor, ...tools, ...extras };
+const dict: Dict = { ...common, ...capture, ...editor, ...tools, ...extras, ...more };
 
 let lang: Lang = (localStorage.getItem("captureme.lang") as Lang) || "th";
 
@@ -26,5 +27,11 @@ export function t(key: string): string {
 /** Replace text of every element with data-i18n="key" (and data-i18n-title for tooltips). */
 export function applyI18n(root: ParentNode = document) {
   root.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => (el.textContent = t(el.dataset.i18n!)));
-  root.querySelectorAll<HTMLElement>("[data-i18n-title]").forEach((el) => (el.title = t(el.dataset.i18nTitle!)));
+  root.querySelectorAll<HTMLElement>("[data-i18n-title]").forEach((el) => {
+    const label = t(el.dataset.i18nTitle!);
+    el.title = label;
+    // icon-only buttons need an accessible name too
+    el.setAttribute("aria-label", label);
+  });
+  root.querySelectorAll<HTMLElement>("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t(el.dataset.i18nAria!)));
 }

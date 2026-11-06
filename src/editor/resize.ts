@@ -23,6 +23,7 @@ export function resizeImage(w: number, h: number) {
   for (const o of st.objects) {
     mapObj(o, from, to);
     o.s.width *= sc; o.s.strength *= sc; o.s.radius *= sc;
+    if (o.type === "measure") o.s.fontSize *= sc;
   }
   if (st.crop) {
     const c = st.crop;

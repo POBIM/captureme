@@ -2,16 +2,20 @@ import "./editor.css";
 import { listen } from "@tauri-apps/api/event";
 import { applyI18n, setLang, t } from "../shared/i18n";
 import { api, queryParam } from "../shared/api";
-import { st, docRect, on, requestRender, setSelection, selected } from "./state";
-import { buildUI, applyTitles, TOOL_BY_CODE } from "./ui";
-import { drawFramed } from "./render";
+import { st, docRect, on, requestRender, setSelection, selected, getObj } from "./state";
+import { buildUI, applyTitles } from "./ui";
+import { TOOL_BY_CODE, favourite } from "./toolorder";
+import { drawFramed, pruneFx } from "./render";
+import { activeWm } from "./watermark";
+import { attachInsert } from "./insert";
+import { showHelp, doTransform } from "./panels";
 import { drawSelection } from "./overlay";
 import { attachViewportInput, fit, zoomStep, zoomActual } from "./viewport";
 import { attachInput, isTyping } from "./input";
 import { currentTool, setTool, confirmCrop, cancelCrop } from "./tools";
 import { initTextEdit, repositionEdit } from "./textedit";
 import { resetHistory, undo, redo, commit } from "./history";
-import { deleteSelected, duplicateSelected, selectAll, bringToFront, sendToBack, nudge } from "./ops";
+import { deleteSelected, duplicateSelected, selectAll, bringToFront, sendToBack, nudge, groupSelected, ungroupSelected, toggleLock } from "./ops";
 import { doCopy, doSave, doSaveAs, closeWindow, copyAndClose, installCloseGuard } from "./export";
 import { isModalOpen } from "./dialogs";
 import { toast } from "./toast";
@@ -20,6 +24,7 @@ const root = document.getElementById("app")!;
 const { stage, canvas } = buildUI(root);
 initTextEdit(stage);
 attachInput(canvas);
+attachInsert(stage);
 attachViewportInput(canvas);
 const ctx = canvas.getContext("2d")!;
 
@@ -36,6 +41,15 @@ function layout() {
 }
 new ResizeObserver(layout).observe(stage);
 window.addEventListener("resize", layout);
+// moving the window to a display with a different pixel ratio does not always fire `resize`
+let dprQuery: MediaQueryList | null = null;
+const onDpr = () => { layout(); watchDpr(); };
+function watchDpr() {
+  dprQuery?.removeEventListener("change", onDpr);
+  dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+  dprQuery.addEventListener("change", onDpr);
+}
+watchDpr();
 
 on("render", () => {
   const dpr = st.dpr, z = st.view.zoom;
@@ -54,8 +68,13 @@ on("render", () => {
   }
   ctx.imageSmoothingEnabled = z < 2;
   ctx.imageSmoothingQuality = "high";
-  drawFramed(ctx, st, d, bg, { px: z, rev: st.rev, skipId: st.editingId });
+  const eo = st.editingId ? getObj(st.editingId) : undefined;
+  drawFramed(ctx, st, d, bg, {
+    px: z, rev: st.rev, zoom: z, wm: activeWm(),
+    skipId: eo?.type === "text" ? eo.id : null, noTextId: eo?.type === "callout" ? eo.id : null,
+  });
   ctx.restore();
+  pruneFx(new Set(st.objects.map((o) => o.id)));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawSelection(ctx);
   currentTool().overlay?.(ctx, dpr);
@@ -66,15 +85,17 @@ on("view", repositionEdit);
 /* ---------- keyboard ---------- */
 let nudgeTimer = 0;
 window.addEventListener("keydown", (e) => {
+  if (e.isComposing || e.keyCode === 229) return; // Thai / CJK IME in progress – never a shortcut
   if (isModalOpen()) return;
   if (e.target instanceof HTMLTextAreaElement) return;
   const meta = e.metaKey || e.ctrlKey;
   const typing = isTyping(e.target);
   if (meta) {
     let handled = true;
+    const undoable = (fn: () => void) => { if (typing) { handled = false; return; } if (st.tool === "crop") cancelCrop(); fn(); };
     switch (e.code) {
-      case "KeyZ": if (typing) return; e.shiftKey ? redo() : undo(); break;
-      case "KeyY": if (typing) return; redo(); break;
+      case "KeyZ": undoable(e.shiftKey ? redo : undo); break;
+      case "KeyY": undoable(redo); break;
       case "KeyD": duplicateSelected(); break;
       case "KeyC": if (typing) return; doCopy(); break;
       case "KeyS": e.shiftKey ? doSaveAs() : doSave(); break;
@@ -87,15 +108,27 @@ window.addEventListener("keydown", (e) => {
       case "KeyA": if (typing) return; selectAll(); break;
       case "BracketRight": bringToFront(); break;
       case "BracketLeft": sendToBack(); break;
+      case "KeyG": if (typing) return; e.shiftKey ? ungroupSelected() : groupSelected(); break;
+      case "KeyL": if (typing) return; e.shiftKey ? toggleLock() : doTransform("ccw"); break;
+      case "KeyR": if (typing || e.shiftKey) { handled = false; break; } doTransform("cw"); break;
+      case "KeyH": if (typing || !e.shiftKey) { handled = false; break; } doTransform("flipH"); break;
+      case "KeyV": if (typing || !e.shiftKey) { handled = false; break; } doTransform("flipV"); break; // plain ⌘V = paste (insert.ts)
       default: handled = false;
     }
     if (handled) e.preventDefault();
     return;
   }
   if (typing) return;
+  if (e.key === "?" || (e.code === "Slash" && e.shiftKey)) { e.preventDefault(); showHelp(); return; }
   if (e.altKey) return;
+  const num = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+  if (num && !e.shiftKey) {
+    const fav = favourite(+num[1]);
+    if (fav) { e.preventDefault(); setTool(fav); }
+    return;
+  }
   const tid = TOOL_BY_CODE.get(e.code);
-  if (tid) { e.preventDefault(); setTool(tid); return; }
+  if (tid && !e.shiftKey) { e.preventDefault(); setTool(tid); return; }
   switch (e.code) {
     case "Delete": case "Backspace": e.preventDefault(); deleteSelected(); break;
     case "Escape":
@@ -115,7 +148,7 @@ window.addEventListener("keydown", (e) => {
     }
   }
 });
-// Disable the webview's own pinch/page zoom and text-selection drags.
+// Disable the webview's own text-selection / image drags (tool reordering uses pointer events instead).
 document.addEventListener("dragstart", (e) => e.preventDefault());
 
 /* ---------- language ---------- */
@@ -156,6 +189,7 @@ async function init() {
   const c = document.createElement("canvas");
   c.width = img.naturalWidth; c.height = img.naturalHeight;
   c.getContext("2d")!.drawImage(img, 0, 0);
+  img.src = ""; // let the decoded copy go: the canvas holds the pixels now
   st.base = c;
   resetHistory();
   layout();

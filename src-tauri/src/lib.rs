@@ -20,12 +20,36 @@ pub mod pin;
 pub mod floating;
 pub mod recording;
 pub mod scroll;
+// Agent H – video recording / video window
+pub mod video;
+// Agent E – review + new capture tools
+pub mod colors;
+pub mod import;
+pub mod privacy;
+pub mod qr;
+pub mod thumb;
 
 use std::sync::Mutex;
 use tauri::Manager;
 
+/// Minimal stderr logger (no extra crates; nothing is written to disk or sent anywhere).
+struct StderrLogger;
+impl log::Log for StderrLogger {
+    fn enabled(&self, m: &log::Metadata) -> bool {
+        m.level() <= log::Level::Info
+    }
+    fn log(&self, r: &log::Record) {
+        if self.enabled(r.metadata()) && r.target().starts_with("captureme") {
+            eprintln!("[{}] {}: {}", r.level(), r.target(), r.args());
+        }
+    }
+    fn flush(&self) {}
+}
+static LOGGER: StderrLogger = StderrLogger;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = log::set_logger(&LOGGER).map(|()| log::set_max_level(log::LevelFilter::Info));
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
@@ -45,7 +69,17 @@ pub fn run() {
             capture::cleanup_stale(&handle);
             permissions::onboarding_if_needed(&handle);
             // ===== setup: Agent D may add init calls here =====
+            #[cfg(debug_assertions)]
+            recording::debug_autotest(&handle);
             Ok(())
+        })
+        // ===== Agent E: images dropped onto a window become readable by that webview (asset scope is strict) =====
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                for p in paths.iter().filter(|p| windows::is_image_path(p)) {
+                    windows::allow_asset(window.app_handle(), &p.to_string_lossy());
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             // ===== shared =====
@@ -91,6 +125,44 @@ pub fn run() {
             recording::recording_begin,
             recording::recording_stop,
             recording::recording_cancel,
+            // ===== Agent H – video recording / video window =====
+            recording::recording_pause,
+            recording::recording_camera,
+            recording::recording_keys_access,
+            recording::recording_mic_status,
+            recording::recording_keys_request,
+            recording::recording_options_get,
+            recording::recording_options_save,
+            recording::recording_default_dir,
+            video::video_open,
+            video::video_probe,
+            video::video_thumbs,
+            video::video_export_mp4,
+            video::video_export_gif,
+            video::video_copy_file,
+            video::video_trash,
+            video::recordings_list,
+            video::recordings_remove,
+            video::recordings_open_folder,
+            // ===== Agent E – new tools (measure/colour/QR/thumbnail/import/privacy) =====
+            settings::default_settings,
+            windows::allow_image_file,
+            capture::overlay_measure,
+            capture::overlay_pixel,
+            capture::overlay_color_pick,
+            capture::color_set_format,
+            colors::colors_list,
+            colors::colors_clear,
+            colors::colors_show,
+            colors::colors_copy,
+            qr::qr_result_get,
+            qr::qr_result_close,
+            qr::qr_copy,
+            thumb::thumb_drag,
+            thumb::thumb_close,
+            import::import_image_file,
+            privacy::remove_all_data,
+            privacy::quit_app,
         ])
         .build(tauri::generate_context!())
         .expect("error while building CaptureME")

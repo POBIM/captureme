@@ -212,7 +212,11 @@ pub fn history_open(app: AppHandle, id: String) -> CmdResult<()> {
 
 /// Store the edited (annotated) version of a history entry.
 #[tauri::command]
-pub async fn update_history_image(app: AppHandle, id: String, png_base64: String) -> CmdResult<()> {
+pub async fn update_history_image(app: AppHandle, id: String, png_base64: String, redacted: Option<bool>) -> CmdResult<()> {
+    // The id becomes part of a file name: only ever accept the uuid-like ids we generate.
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        return Err(AppError::Msg("invalid history id".into()));
+    }
     let bytes = export::ensure_png(export::decode_b64(&png_base64)?)?;
     let dst = edited_dir(&app).join(format!("{id}.png"));
     std::fs::write(&dst, &bytes)?;
@@ -239,6 +243,17 @@ pub async fn update_history_image(app: AppHandle, id: String, png_base64: String
         let _ = std::fs::remove_file(&dst);
         let _ = std::fs::remove_file(&thumb);
         return Err(AppError::Msg(format!("history entry {id} not found")));
+    }
+    // Privacy: when the edit hides content, overwrite the original capture so the
+    // un-redacted pixels don't stay on disk.
+    if redacted.unwrap_or(false) {
+        let original = with_store(&app, |items| items.iter().find(|i| i.capture.id == id).map(|i| i.capture.path.clone()));
+        if let Some(orig) = original {
+            let p = std::path::Path::new(&orig);
+            if p.starts_with(crate::paths::captures_dir(&app)) || p.starts_with(root(&app)) {
+                std::fs::write(p, &bytes)?;
+            }
+        }
     }
     notify(&app);
     Ok(())

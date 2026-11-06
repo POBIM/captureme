@@ -8,5 +8,7 @@
   <string>CaptureME needs screen recording permission to take screenshots.</string>
   <key>NSMicrophoneUsageDescription</key>
   <string>CaptureME can record microphone audio during screen recordings.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>CaptureME can show your webcam as a floating bubble that is included in screen recordings.</string>
 </dict>
 </plist>

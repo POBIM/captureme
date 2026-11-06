@@ -78,7 +78,7 @@ fn show_result_window(app: &AppHandle, res: OcrResult) {
     let app2 = app.clone();
     let _ = app.run_on_main_thread(move || {
         let label = format!("ocr-{}", uuid::Uuid::new_v4().simple());
-        results().lock().unwrap().insert(label.clone(), res);
+        results().lock().unwrap_or_else(|e| e.into_inner()).insert(label.clone(), res);
         let (w, h) = (400.0, 230.0);
         let mut b = WebviewWindowBuilder::new(&app2, &label, WebviewUrl::App(format!("ocr.html?label={label}").into()))
             .title("CaptureME OCR")
@@ -99,9 +99,12 @@ fn show_result_window(app: &AppHandle, res: OcrResult) {
             let size = m.size().to_logical::<f64>(sf);
             b = b.position(pos.x + size.width - w - 16.0, pos.y + 40.0);
         }
-        if let Err(e) = b.build() {
-            log::warn!("ocr result window: {e}");
-            results().lock().unwrap().remove(&label);
+        match b.build() {
+            Ok(w) => crate::windows::float_over_fullscreen(&w),
+            Err(e) => {
+                log::warn!("ocr result window: {e}");
+                results().lock().unwrap_or_else(|e| e.into_inner()).remove(&label);
+            }
         }
     });
 }
@@ -157,13 +160,13 @@ pub async fn ocr_file(path: String) -> CmdResult<String> {
 /// Text for an OCR result window (called by `ocr.html`).
 #[tauri::command]
 pub fn ocr_result_get(label: String) -> Option<OcrResult> {
-    results().lock().unwrap().get(&label).cloned()
+    results().lock().unwrap_or_else(|e| e.into_inner()).get(&label).cloned()
 }
 
 /// Called by `ocr.html` when it closes itself.
 #[tauri::command]
 pub fn ocr_result_close(app: AppHandle, label: String) {
-    results().lock().unwrap().remove(&label);
+    results().lock().unwrap_or_else(|e| e.into_inner()).remove(&label);
     if let Some(w) = app.get_webview_window(&label) {
         let _ = w.close();
     }

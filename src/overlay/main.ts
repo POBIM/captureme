@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api, queryParam } from "../shared/api";
 import { setLang, t } from "../shared/i18n";
+import { runColor } from "./color";
+import { runMeasure } from "./measure";
 
 interface OverlayWindow { id: number; app: string; title: string; x: number; y: number; width: number; height: number }
 interface OverlayInfo {
@@ -47,7 +49,7 @@ async function runOverlay() {
   const imgPath = queryParam("img") ?? "";
   const monitor = Number(queryParam("monitor") ?? 0);
   const win = getCurrentWindow();
-  const windowMode = params.mode === "window";
+  const windowMode = params.mode === "window" || params.mode === "record-window";
   if (windowMode) document.body.classList.add("window-mode");
 
   // ---- load settings (language), session info and the frozen screenshot in parallel
@@ -73,6 +75,13 @@ async function runOverlay() {
   const W = info.width, H = info.height;
   const natScaleX = img.naturalWidth / W, natScaleY = img.naturalHeight / H;
 
+  // ---- tools that have their own interaction model (frozen screen stays open)
+  if (params.mode === "color" || params.mode === "measure") {
+    const ctx = { app, img, info, readable, natScaleX, natScaleY, win, monitor, format: settings?.color_format ?? "hex" };
+    await (params.mode === "color" ? runColor(ctx) : runMeasure(ctx));
+    return;
+  }
+
   // ---- DOM
   img.id = "shot";
   app.innerHTML = `
@@ -83,11 +92,12 @@ async function runOverlay() {
     <div id="size" class="chip"></div>
     <div id="toolbar"></div>
     <div id="loupe"><canvas width="124" height="124"></canvas><div class="meta"><div class="hex"><span class="sw"></span><span class="hextxt"></span></div><div class="xy"></div></div></div>
-    <div id="hint"></div>`;
+    <div id="hint"></div>
+    <div id="presets" role="group" aria-label="${t("more.preset.title")}"></div>`;
   app.prepend(img);
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const dim = $("dim"), vline = $("vline"), hline = $("hline"), hl = $("hl"), hlTag = hl.querySelector(".tag") as HTMLElement;
-  const selEl = $("sel"), sizeEl = $("size"), toolbar = $("toolbar"), loupe = $("loupe"), hint = $("hint");
+  const selEl = $("sel"), sizeEl = $("size"), toolbar = $("toolbar"), loupe = $("loupe"), hint = $("hint"), presetBar = $("presets");
   const loupeCanvas = loupe.querySelector("canvas") as HTMLCanvasElement;
   const lctx = loupeCanvas.getContext("2d")!;
   const swEl = loupe.querySelector(".sw") as HTMLElement, hexEl = loupe.querySelector(".hextxt") as HTMLElement, xyEl = loupe.querySelector(".xy") as HTMLElement;
@@ -96,8 +106,8 @@ async function runOverlay() {
 
   // ---- hint pill + toolbar
   const m = params.mode;
-  const hintKey = windowMode ? "cap.hint.window" : `cap.hint.${m}`;
-  const badge = m === "scroll" || m === "record" ? `<span class="badge">${t(`cap.badge.${m}`)}</span>` : "";
+  const hintKey = m === "record-window" ? "extras.rec.pickWindow" : windowMode ? "cap.hint.window" : `cap.hint.${m}`;
+  const badge = m === "scroll" || m === "record" || m === "qr" ? `<span class="badge">${t(m === "qr" ? "more.badge.qr" : `cap.badge.${m}`)}</span>` : "";
   hint.innerHTML = `${badge}${t(hintKey)}${windowMode ? "" : `<small>${t("cap.hint.keys")}</small>`}`;
 
   const ico = {
@@ -107,7 +117,7 @@ async function runOverlay() {
     ocr: `<svg viewBox="0 0 24 24"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M9 9h6M12 9v7"/></svg>`,
     x: `<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
   };
-  const btn = (id: string, title: string, svg: string, cls = "") => `<button data-act="${id}" class="${cls}" title="${title}">${svg}</button>`;
+  const btn = (id: string, title: string, svg: string, cls = "") => `<button data-act="${id}" class="${cls}" title="${title}" aria-label="${title}">${svg}</button>`;
   const rich = m === "capture" || m === "ocr" || m === "pin";
   if (rich) {
     toolbar.innerHTML =
@@ -115,7 +125,7 @@ async function runOverlay() {
       btn("copy", t("cap.tb.copy"), ico.copy) + btn("pin", t("cap.tb.pin"), ico.pin) + btn("ocr", t("cap.tb.ocr"), ico.ocr) +
       `<span class="sep"></span>` + btn("cancel", t("cap.tb.cancel"), ico.x);
   } else {
-    const label = t(m === "scroll" ? "cap.tb.start_scroll" : "cap.tb.start_record");
+    const label = t(m === "scroll" ? "cap.tb.start_scroll" : m === "qr" ? "more.tb.start_qr" : "cap.tb.start_record");
     toolbar.innerHTML =
       `<button data-act="confirm" class="primary wide" title="${t("cap.tb.confirm")}">${label}</button><span class="sep"></span>` +
       btn("cancel", t("cap.tb.cancel"), ico.x);
@@ -155,13 +165,25 @@ async function runOverlay() {
 
   const windowAt = (x: number, y: number) => info.windows.find((w) => x >= w.x && x < w.x + w.width && y >= w.y && y < w.y + w.height) ?? null;
 
-  const rectFromDrag = (d: { sx: number; sy: number }, x: number, y: number, square: boolean): Rect => {
+  // aspect lock (presets bar) and fixed output size
+  let ratio: number | null = null;
+  let fixed: { w: number; h: number } | null = null;
+
+  /** Fit a rect of aspect `r` into the box (w0,h0), never larger than (maxW,maxH). */
+  const fitAspect = (w0: number, h0: number, r: number, maxW: number, maxH: number) => {
+    let w = w0, h = h0;
+    if (w / Math.max(h, 1e-6) > r) h = w / r; else w = h * r;
+    const k = Math.min(1, maxW / Math.max(w, 1e-6), maxH / Math.max(h, 1e-6));
+    return { w: w * k, h: h * k };
+  };
+
+  const rectFromDrag = (d: { sx: number; sy: number }, x: number, y: number, r: number | null): Rect => {
     let dx = x - d.sx, dy = y - d.sy;
-    if (square) {
+    if (r) {
       const kx = dx >= 0 ? 1 : -1, ky = dy >= 0 ? 1 : -1;
       const maxX = kx > 0 ? W - d.sx : d.sx, maxY = ky > 0 ? H - d.sy : d.sy;
-      const side = Math.min(Math.max(Math.abs(dx), Math.abs(dy)), maxX, maxY);
-      dx = kx * side; dy = ky * side;
+      const f = fitAspect(Math.abs(dx), Math.abs(dy), r, maxX, maxY);
+      dx = kx * f.w; dy = ky * f.h;
     }
     const x1 = d.sx + dx, y1 = d.sy + dy;
     return { x: Math.min(d.sx, x1), y: Math.min(d.sy, y1), w: Math.abs(dx), h: Math.abs(dy) };
@@ -248,7 +270,78 @@ async function runOverlay() {
     // loupe: while picking or dragging
     if (picking || drag) drawLoupe(); else loupe.style.display = "none";
     hint.classList.toggle("faded", !!drag || (!!sel && !drag));
+    presetBar.classList.toggle("faded", !!drag);
   };
+
+  // ---- presets bar: aspect lock + fixed sizes
+  const SIZES: Array<[number, number]> = [[1280, 720], [1920, 1080], [800, 600]];
+  const RATIOS: Array<[number, number]> = [[1, 1], [4, 3], [16, 9]];
+  let custom: [number, number] | null = null;
+  try {
+    const c = JSON.parse(localStorage.getItem("captureme.customSize") ?? "null");
+    if (Array.isArray(c) && c.length === 2 && c[0] > 0 && c[1] > 0) custom = [c[0], c[1]];
+  } catch { /* ignore */ }
+  let presetKey = "free";
+  let showCustom = false;
+
+  const fixedSize = (wpx: number, hpx: number) => {
+    let w = wpx / info.scale, h = hpx / info.scale;
+    const k = Math.min(1, W / w, H / h);
+    return { w: Math.max(1, w * k), h: Math.max(1, h * k) };
+  };
+  const placeFixed = (cxp: number, cyp: number): Rect => {
+    const f = fixed!;
+    return normalise({ x: clamp(cxp - f.w / 2, 0, W - f.w), y: clamp(cyp - f.h / 2, 0, H - f.h), w: f.w, h: f.h });
+  };
+  const applyPreset = (key: string) => {
+    presetKey = key;
+    showCustom = key === "custom";
+    fixed = null; ratio = null;
+    if (key.startsWith("r:")) {
+      const [a, b] = key.slice(2).split("x").map(Number);
+      ratio = a / b;
+      if (sel) { const f = fitAspect(sel.w, sel.h, ratio, W - sel.x, H - sel.y); sel = normalise({ x: sel.x, y: sel.y, w: f.w, h: f.h }); }
+    } else if (key.startsWith("s:")) {
+      const [a, b] = key.slice(2).split("x").map(Number);
+      fixed = fixedSize(a, b); ratio = fixed.w / fixed.h;
+      const c = sel ? { x: sel.x + sel.w / 2, y: sel.y + sel.h / 2 } : { x: mx >= 0 ? mx : W / 2, y: my >= 0 ? my : H / 2 };
+      sel = placeFixed(c.x, c.y);
+    }
+    renderPresets();
+    render();
+  };
+  const renderPresets = () => {
+    const chip = (key: string, label: string) => `<button data-p="${key}" class="${presetKey === key ? "on" : ""}" aria-pressed="${presetKey === key}">${label}</button>`;
+    presetBar.innerHTML =
+      chip("free", t("more.preset.free")) +
+      RATIOS.map(([a, b]) => chip(`r:${a}x${b}`, `${a}:${b}`)).join("") + `<span class="sep"></span>` +
+      SIZES.map(([a, b]) => chip(`s:${a}x${b}`, `${a}×${b}`)).join("") +
+      (custom ? chip(`s:${custom[0]}x${custom[1]}`, `${custom[0]}×${custom[1]}`) : "") +
+      chip("custom", t("more.preset.custom")) +
+      (showCustom
+        ? `<span class="custom"><input id="cw" type="number" min="16" max="16000" value="${custom?.[0] ?? 1280}" aria-label="${t("more.preset.width")}"> × <input id="ch" type="number" min="16" max="16000" value="${custom?.[1] ?? 720}" aria-label="${t("more.preset.height")}"><button data-p="apply">${t("common.ok")}</button></span>`
+        : "");
+  };
+  presetBar.addEventListener("mousedown", (e) => e.stopPropagation());
+  presetBar.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest("button");
+    if (!b) return;
+    const key = b.dataset.p!;
+    if (key === "apply") {
+      const w = Math.round(Number((document.getElementById("cw") as HTMLInputElement).value));
+      const h = Math.round(Number((document.getElementById("ch") as HTMLInputElement).value));
+      if (w >= 16 && h >= 16 && w <= 16000 && h <= 16000) {
+        custom = [w, h];
+        try { localStorage.setItem("captureme.customSize", JSON.stringify(custom)); } catch { /* ignore */ }
+        showCustom = false;
+        applyPreset(`s:${w}x${h}`);
+      }
+      return;
+    }
+    if (key === "custom") { presetKey = "custom"; showCustom = !showCustom; renderPresets(); return; }
+    applyPreset(key);
+  });
+  if (windowMode) presetBar.style.display = "none"; else renderPresets();
 
   // ---- pointer input
   const pt = (e: MouseEvent) => ({ x: cx(e.clientX), y: cy(e.clientY) });
@@ -261,7 +354,7 @@ async function runOverlay() {
     if (drag?.kind === "new") {
       if (Math.hypot(p.x - drag.sx, p.y - drag.sy) > 3) drag.moved = true;
       if (space) { drag.sx = cx(drag.sx + (p.x - lastX)); drag.sy = cy(drag.sy + (p.y - lastY)); }
-      if (drag.moved && !windowMode) sel = normalise(rectFromDrag(drag, p.x, p.y, e.shiftKey));
+      if (drag.moved && !windowMode) sel = normalise(rectFromDrag(drag, p.x, p.y, e.shiftKey ? 1 : ratio));
     } else if (drag?.kind === "move") {
       const o = drag.orig;
       sel = { x: Math.round(clamp(o.x + p.x - drag.ox, 0, W - o.w)), y: Math.round(clamp(o.y + p.y - drag.oy, 0, H - o.h)), w: o.w, h: o.h };
@@ -280,19 +373,40 @@ async function runOverlay() {
     if (h.includes("e")) r = cx(r + dx);
     if (h.includes("n")) t0 = cy(t0 + dy);
     if (h.includes("s")) b = cy(b + dy);
-    return normalise({ x: Math.min(l, r), y: Math.min(t0, b), w: Math.abs(r - l), h: Math.abs(b - t0) });
+    let out = { x: Math.min(l, r), y: Math.min(t0, b), w: Math.abs(r - l), h: Math.abs(b - t0) };
+    if (ratio && out.w > 0 && out.h > 0) {
+      // keep the aspect: edge handles drive one side, corner handles the width; anchor the opposite side
+      const right = o.x + o.w, bottom = o.y + o.h, cxm = o.x + o.w / 2, cym = o.y + o.h / 2;
+      let w = out.w, hh = out.h;
+      if (h === "n" || h === "s") w = hh * ratio; else hh = w / ratio;
+      const maxW = h === "n" || h === "s" ? 2 * Math.min(cxm, W - cxm) : (h.includes("w") ? right : W - o.x);
+      const maxH = h === "e" || h === "w" ? 2 * Math.min(cym, H - cym) : (h.includes("n") ? bottom : H - o.y);
+      const k = Math.min(1, maxW / Math.max(w, 1e-6), maxH / Math.max(hh, 1e-6));
+      w *= k; hh *= k;
+      const x = h === "n" || h === "s" ? cxm - w / 2 : h.includes("w") ? right - w : o.x;
+      const y = h === "e" || h === "w" ? cym - hh / 2 : h.includes("n") ? bottom - hh : o.y;
+      out = { x, y, w, h: hh };
+    }
+    return normalise(out);
   };
 
   window.addEventListener("mousedown", (e) => {
     if (done || e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (toolbar.contains(target)) return;
+    if (toolbar.contains(target) || presetBar.contains(target)) return;
     const p = pt(e);
     lastX = p.x; lastY = p.y;
     if (sel && !windowMode) {
       const handle = target.dataset?.h;
       if (handle) { drag = { kind: "resize", handle, ox: p.x, oy: p.y, orig: { ...sel } }; render(); return; }
       if (target === selEl) { drag = { kind: "move", ox: p.x, oy: p.y, orig: { ...sel } }; render(); return; }
+    }
+    if (fixed && !windowMode) {
+      // fixed output size: a click places the frame (centred on the pointer); drag to fine-tune
+      sel = placeFixed(p.x, p.y);
+      drag = { kind: "move", ox: p.x, oy: p.y, orig: { ...sel } };
+      render();
+      return;
     }
     drag = { kind: "new", sx: p.x, sy: p.y, moved: false };
     if (!windowMode) { /* keep old selection until the drag really starts */ }
@@ -339,6 +453,10 @@ async function runOverlay() {
   // ---- keyboard
   window.addEventListener("keydown", (e) => {
     if (done) return;
+    if (e.target instanceof HTMLInputElement) {
+      if (e.key === "Escape") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+      return; // typing a custom size
+    }
     switch (e.key) {
       case "Escape": e.preventDefault(); cancel(); return;
       case "Enter": e.preventDefault(); if (sel || hover) confirm(); return;

@@ -2,7 +2,7 @@ import { st, emit, kscale, docRect, requestRender, setSelection } from "../state
 import { fit } from "../viewport";
 import { endEdit } from "../textedit";
 import { SelectTool } from "./select";
-import { ShapeTool, PenTool, PlaceTool, TextTool } from "./draw";
+import { ShapeTool, PenTool, PlaceTool, TextTool, CalloutTool } from "./draw";
 import { CropTool, applyCrop } from "./crop";
 import { EyedropperTool } from "./eyedropper";
 import type { Tool, ToolId } from "../types";
@@ -25,6 +25,11 @@ export const tools: Record<ToolId, Tool> = {
   step: new PlaceTool("step"),
   stamp: new PlaceTool("stamp"),
   text: new TextTool(),
+  callout: new CalloutTool(),
+  redact: new ShapeTool("redact"),
+  marker: new ShapeTool("marker"),
+  underline: new ShapeTool("underline"),
+  measure: new ShapeTool("measure"),
 };
 eyedropper.onDone = () => setTool(st.prevTool === "eyedropper" ? "select" : st.prevTool);
 

@@ -5,3 +5,12 @@ src-tauri/gen/schemas/
 *.dmg
 .DS_Store
 release/
+
+# marketing (Remotion) – keep rendered outputs (png/pdf/mp4) committed-friendly, ignore deps & scratch
+marketing/node_modules/
+marketing/out/.pdf-build/
+marketing/out/lab-*.png
+marketing/out/tut-*.png
+marketing/out/t-*.png
+marketing/out/*-test.png
+marketing/.remotion/

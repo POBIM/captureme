@@ -57,20 +57,21 @@ struct Preview {
 
 /// Called by capture.rs when overlay mode "scroll" finishes.
 pub fn start_region(app: &AppHandle, rect: SelectionRect) {
-    {
-        let mut s = SESSION.lock().unwrap();
+    let sess = {
+        let mut s = SESSION.lock().unwrap_or_else(|e| e.into_inner());
         if s.is_some() {
             return;
         }
-        *s = Some(Session {
+        let sess = Session {
             done: Arc::new(AtomicBool::new(false)),
             cancel: Arc::new(AtomicBool::new(false)),
             auto: Arc::new(AtomicBool::new(false)),
             width: rect.width,
             height: rect.height,
-        });
-    }
-    let sess = SESSION.lock().unwrap().clone().unwrap();
+        };
+        *s = Some(sess.clone());
+        sess
+    };
 
     if let Err(e) = floating::open_border(app, BORDER, "scroll", "scroll", &rect) {
         log::warn!("scroll border: {e}");
@@ -79,7 +80,7 @@ pub fn start_region(app: &AppHandle, rect: SelectionRect) {
     if let Err(e) = floating::open_panel(app, CONTROL, "scroll.html?mode=control", pos, CONTROL_SIZE, true) {
         log::error!("scroll control window: {e}");
         floating::close(app, BORDER);
-        *SESSION.lock().unwrap() = None;
+        *SESSION.lock().unwrap_or_else(|e| e.into_inner()) = None;
         return;
     }
     register_escape(app);
@@ -94,7 +95,7 @@ fn register_escape(app: &AppHandle) {
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
     let r = app.global_shortcut().on_shortcut("Escape", |_app, _sc, ev| {
         if ev.state == ShortcutState::Pressed {
-            if let Some(s) = SESSION.lock().unwrap().as_ref() {
+            if let Some(s) = SESSION.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
                 s.done.store(true, Ordering::SeqCst);
             }
         }
@@ -114,7 +115,7 @@ fn unregister_escape(app: &AppHandle) {
 
 #[tauri::command]
 pub fn scroll_status() -> ScrollStatus {
-    match SESSION.lock().unwrap().as_ref() {
+    match SESSION.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         Some(s) => ScrollStatus { active: true, width: s.width, height: s.height, auto: s.auto.load(Ordering::SeqCst), accessibility: input::trusted() },
         None => ScrollStatus { active: false, width: 0.0, height: 0.0, auto: false, accessibility: input::trusted() },
     }
@@ -122,14 +123,14 @@ pub fn scroll_status() -> ScrollStatus {
 
 #[tauri::command]
 pub fn scroll_done() {
-    if let Some(s) = SESSION.lock().unwrap().as_ref() {
+    if let Some(s) = SESSION.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         s.done.store(true, Ordering::SeqCst);
     }
 }
 
 #[tauri::command]
 pub fn scroll_cancel() {
-    if let Some(s) = SESSION.lock().unwrap().as_ref() {
+    if let Some(s) = SESSION.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         s.cancel.store(true, Ordering::SeqCst);
         s.done.store(true, Ordering::SeqCst);
     }
@@ -138,7 +139,7 @@ pub fn scroll_cancel() {
 /// Toggle auto-scroll (posts scroll-wheel events; needs the Accessibility permission).
 #[tauri::command]
 pub fn scroll_set_auto(on: bool) -> Result<(), String> {
-    let guard = SESSION.lock().unwrap();
+    let guard = SESSION.lock().unwrap_or_else(|e| e.into_inner());
     let s = guard.as_ref().ok_or("no active scrolling capture")?;
     if on && !input::trusted() {
         input::prompt_trust();
@@ -157,7 +158,7 @@ fn run(app: &AppHandle, rect: SelectionRect, sess: Session) {
         unregister_escape(app);
         floating::close(app, CONTROL);
         floating::close(app, BORDER);
-        *SESSION.lock().unwrap() = None;
+        *SESSION.lock().unwrap_or_else(|e| e.into_inner()) = None;
     };
 
     let monitor = xcap::Monitor::all().ok().and_then(|l| l.into_iter().find(|m| m.id().ok() == Some(rect.monitor_id)));

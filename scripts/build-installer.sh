@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
-# CaptureME – build a release .app + .dmg (Apple Silicon by default).
+# CaptureME – build a release for everyone on Mac: .app + .dmg + .zip + SHA256SUMS.txt
 #
-#   scripts/build-installer.sh [--universal] [--skip-npm] [--no-dmg-fallback] [-h]
+#   scripts/build-installer.sh [--native | --universal] [--skip-npm] [-h]
 #
-# Output: ./release/CaptureME_<version>_aarch64.dmg   (or _universal.dmg with --universal)
+#   (default)    universal binary (Apple Silicon + Intel) when the x86_64-apple-darwin Rust target is
+#                installed (`rustup target add x86_64-apple-darwin`); otherwise a native build + a warning
+#   --universal  force a universal build (installs both Rust targets with rustup if missing)
+#   --native     build only for this Mac's architecture (faster; for testing)
+#   --skip-npm   don't run `npm ci`
+#
+# Output (./release/):
+#   CaptureME_<version>_universal.dmg   disk image with drag-to-Applications layout
+#   CaptureME_<version>_universal.zip   zipped CaptureME.app (ditto, keeps signature + xattrs)
+#   SHA256SUMS.txt                      checksums of the files above (`shasum -a 256 -c SHA256SUMS.txt`)
+#   (native builds are labelled _aarch64 / _x64 instead of _universal)
+#
+# Minimum macOS: see bundle.macOS.minimumSystemVersion in src-tauri/tauri.conf.json (14.0).
 #
 # Signing / notarisation (optional, all via environment variables):
 #   APPLE_SIGNING_IDENTITY   e.g. "Developer ID Application: Your Name (TEAMID)"  → real signature
@@ -16,13 +28,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-UNIVERSAL=0
+UNIVERSAL=auto
 SKIP_NPM=0
 for a in "$@"; do
   case "$a" in
     --universal) UNIVERSAL=1 ;;
+    --native) UNIVERSAL=0 ;;
     --skip-npm) SKIP_NPM=1 ;;
-    -h|--help) sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $a" >&2; exit 2 ;;
   esac
 done
@@ -53,8 +66,18 @@ TARGET_ARGS=()
 BUNDLE_DIR="src-tauri/target/release/bundle"
 ARCH_LABEL="aarch64"
 if [[ "$(uname -m)" != "arm64" ]]; then ARCH_LABEL="x64"; fi
+if [[ "$UNIVERSAL" == "auto" ]]; then
+  if command -v rustup >/dev/null 2>&1 && rustup target list --installed 2>/dev/null | grep -qx "x86_64-apple-darwin" \
+     && rustup target list --installed 2>/dev/null | grep -qx "aarch64-apple-darwin"; then
+    UNIVERSAL=1
+  else
+    UNIVERSAL=0
+    warn "x86_64-apple-darwin / aarch64-apple-darwin Rust targets not both installed → NATIVE build only."
+    warn "For a release that also runs on Intel Macs:  rustup target add aarch64-apple-darwin x86_64-apple-darwin"
+  fi
+fi
 if [[ $UNIVERSAL -eq 1 ]]; then
-  say "Universal build: adding Rust targets"
+  say "Universal build (Apple Silicon + Intel): ensuring Rust targets"
   rustup target add aarch64-apple-darwin x86_64-apple-darwin
   TARGET_ARGS=(--target universal-apple-darwin)
   BUNDLE_DIR="src-tauri/target/universal-apple-darwin/release/bundle"
@@ -134,6 +157,29 @@ if [[ "$IDENTITY" != "-" && -n "${APPLE_ID:-}" && -n "${APPLE_TEAM_ID:-}" && -n 
   fi
 fi
 
+# ---------------------------------------------------------------- architectures
+BIN="$APP/Contents/MacOS/$(defaults read "$ROOT/$APP/Contents/Info" CFBundleExecutable 2>/dev/null || echo captureme)"
+ARCHS="$(lipo -archs "$BIN" 2>/dev/null || echo '?')"
+say "Binary architectures: $ARCHS"
+if [[ "$ARCH_LABEL" == "universal" && "$ARCHS" != *arm64* || "$ARCH_LABEL" == "universal" && "$ARCHS" != *x86_64* ]]; then
+  die "expected a universal binary (arm64 + x86_64) but got: $ARCHS"
+fi
+MINOS="$(defaults read "$ROOT/$APP/Contents/Info" LSMinimumSystemVersion 2>/dev/null || echo '?')"
+say "LSMinimumSystemVersion: $MINOS"
+
+# ---------------------------------------------------------------- zip of the .app
+ZIP="release/${PRODUCT}_${VERSION}_${ARCH_LABEL}.zip"
+say "Creating $ZIP"
+rm -f "$ZIP"
+ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+
+# ---------------------------------------------------------------- checksums
+say "Writing release/SHA256SUMS.txt"
+( cd release && shasum -a 256 "$(basename "$OUT")" "$(basename "$ZIP")" > SHA256SUMS.txt )
+cat release/SHA256SUMS.txt | sed 's/^/    /'
+
 say "Done"
 echo "    app: $APP"
 echo "    dmg: $ROOT/$OUT ($(du -h "$OUT" | cut -f1))"
+echo "    zip: $ROOT/$ZIP ($(du -h "$ZIP" | cut -f1))"
+echo "    sha: $ROOT/release/SHA256SUMS.txt"

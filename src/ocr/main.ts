@@ -17,7 +17,7 @@ document.getElementById("app")!.innerHTML = `
     <div class="head" data-tauri-drag-region>
       <span class="title" data-i18n="tools.ocr.title"></span>
       <span class="status" id="status"></span>
-      <button class="x" id="close">✕</button>
+      <button class="x" id="close" data-i18n-title="common.close">✕</button>
     </div>
     <textarea id="text" spellcheck="false"></textarea>
     <div class="foot">

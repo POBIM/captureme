@@ -2,26 +2,19 @@ import "./settings.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
-import { open as openDialog, ask } from "@tauri-apps/plugin-dialog";
+import { open as openDialog, ask, message } from "@tauri-apps/plugin-dialog";
 import { unregisterAll } from "@tauri-apps/plugin-global-shortcut";
-import { api, type Settings } from "../shared/api";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { api, HOTKEY_ACTIONS, REPO_URL, queryParam, type Settings } from "../shared/api";
 import { applyI18n, setLang, t } from "../shared/i18n";
+import { mountRecordingPane } from "../recorder/settings-pane";
 
-const HK_ACTIONS = ["region", "window", "fullscreen", "delayed", "scroll", "record", "ocr", "history"];
-const DEFAULT_HOTKEYS: Record<string, string> = {
-  region: "CmdOrCtrl+Shift+2",
-  window: "CmdOrCtrl+Shift+3",
-  fullscreen: "CmdOrCtrl+Shift+1",
-  delayed: "CmdOrCtrl+Shift+6",
-  scroll: "CmdOrCtrl+Shift+7",
-  record: "CmdOrCtrl+Shift+8",
-  ocr: "CmdOrCtrl+Shift+9",
-  history: "CmdOrCtrl+Shift+0",
-};
-const TABS = ["general", "save", "hotkeys", "history", "about"] as const;
+const HK_ACTIONS = HOTKEY_ACTIONS;
+const TABS = ["general", "save", "recording", "hotkeys", "history", "about"] as const;
 
 let cur: Settings;
-let activeTab: (typeof TABS)[number] = "general";
+const startTab = queryParam("tab");
+let activeTab: (typeof TABS)[number] = (TABS as readonly string[]).includes(startTab ?? "") ? (startTab as (typeof TABS)[number]) : "general";
 let recording: string | null = null;
 
 const app = document.getElementById("app")!;
@@ -42,7 +35,12 @@ function build() {
     ${row("tools.settings.language", `<select id="language"><option value="th">ไทย</option><option value="en">English</option></select>`)}
     <h2 data-i18n="tools.settings.afterCapture"></h2>
     ${row("tools.settings.copyAfter", switchHtml("copy_after_capture"), "tools.settings.copyAfter.hint")}
-    ${row("tools.settings.openEditor", switchHtml("open_editor_after_capture"), "tools.settings.openEditor.hint")}
+    ${row("more.set.afterAction", `<select id="after_capture"><option value="editor" data-i18n="more.set.after.editor"></option><option value="thumbnail" data-i18n="more.set.after.thumbnail"></option><option value="copy" data-i18n="more.set.after.copy"></option><option value="save" data-i18n="more.set.after.save"></option></select>`, "more.set.afterAction.hint")}
+    <div id="thumb_row">${row("more.set.thumbSecs", `<input type="number" id="thumbnail_seconds" min="0" max="120" step="1">`, "more.set.thumbSecs.hint")}</div>
+    <h2 data-i18n="more.set.captureOptions"></h2>
+    ${row("more.set.cursor", switchHtml("include_cursor"), "more.set.cursor.hint")}
+    ${row("more.set.shadow", switchHtml("window_shadow"), "more.set.shadow.hint")}
+    ${row("more.set.colorFormat", `<select id="color_format"><option value="hex">HEX  #RRGGBB</option><option value="rgb">RGB  rgb(r, g, b)</option><option value="hsl">HSL  hsl(h, s%, l%)</option></select>`)}
     <h2 data-i18n="tools.settings.system"></h2>
     ${row("tools.settings.sound", switchHtml("play_sound"))}
     ${row("tools.settings.autostart", switchHtml("launch_at_login"))}
@@ -59,8 +57,10 @@ function build() {
     <div id="quality_row">${row("tools.settings.quality", `<input type="range" id="jpg_quality" min="10" max="100" step="1"><span id="jpg_quality_val" style="width:34px;text-align:right"></span>`)}</div>
   </section>
 
+  <section class="pane" data-pane="recording" id="rec_pane"></section>
+
   <section class="pane" data-pane="hotkeys">
-    ${HK_ACTIONS.map((a) => row(`tools.hk.${a}`, `<button class="btn hk" data-hk="${a}"></button>`)).join("")}
+    ${HK_ACTIONS.map((a) => row(a === "repeat" || a === "pin" || a === "color" || a === "measure" || a === "qr" || a === "clipboard" ? `more.hk.${a}` : `tools.hk.${a}`, `<button class="btn hk" data-hk="${a}"></button><button class="btn icon" data-clear="${a}" data-i18n-title="more.set.hk.clear">✕</button>`)).join("")}
     <div class="hint" data-i18n="tools.settings.hk.hint"></div>
     <div style="margin-top:14px"><button class="btn" id="reset_hotkeys" data-i18n="tools.settings.hk.reset"></button></div>
   </section>
@@ -78,11 +78,29 @@ function build() {
       <div class="ver"><span data-i18n="tools.settings.version"></span> <span id="version"></span></div>
       <p data-i18n="tools.settings.aboutText"></p>
     </div>
+    <div class="card privacy">
+      <h3 data-i18n="more.about.privacyTitle"></h3>
+      <p data-i18n="more.about.privacy"></p>
+      <ul>
+        <li data-i18n="more.about.p1"></li><li data-i18n="more.about.p2"></li><li data-i18n="more.about.p3"></li><li data-i18n="more.about.p4"></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 data-i18n="more.about.licenseTitle"></h3>
+      <p data-i18n="more.about.license"></p>
+      <div class="actions"><button class="btn" id="open_repo" data-i18n="more.about.repo"></button><span class="path" id="repo_url" style="direction:ltr"></span></div>
+    </div>
+    <div class="card danger-zone">
+      <h3 data-i18n="more.about.removeTitle"></h3>
+      <p data-i18n="more.about.removeText"></p>
+      <div class="actions"><button class="btn danger" id="remove_data" data-i18n="more.about.removeBtn"></button></div>
+    </div>
   </section>
   <div id="toast"></div>`;
 
   app.querySelectorAll<HTMLButtonElement>(".tab").forEach((b) => (b.onclick = () => showTab(b.dataset.tab as (typeof TABS)[number])));
   bindControls();
+  void mountRecordingPane(document.getElementById("rec_pane") as HTMLElement, (m) => toast(m));
   showTab(activeTab);
 }
 
@@ -120,7 +138,12 @@ function previewName(): string {
 // ---- state -> controls --------------------------------------------------------------------
 function syncControls() {
   ($("language") as HTMLSelectElement).value = cur.language;
-  for (const k of ["copy_after_capture", "open_editor_after_capture", "play_sound", "launch_at_login"] as const) {
+  ($("after_capture") as HTMLSelectElement).value = cur.after_capture;
+  $("thumb_row").style.display = cur.after_capture === "thumbnail" ? "" : "none";
+  const ts = $("thumbnail_seconds") as HTMLInputElement;
+  if (document.activeElement !== ts) ts.value = String(cur.thumbnail_seconds);
+  ($("color_format") as HTMLSelectElement).value = cur.color_format;
+  for (const k of ["copy_after_capture", "play_sound", "launch_at_login", "include_cursor", "window_shadow"] as const) {
     ($(k) as HTMLInputElement).checked = cur[k];
   }
   $("save_dir_label").textContent = cur.save_dir;
@@ -175,7 +198,9 @@ function renderHotkeys() {
     const a = b.dataset.hk!;
     const isRec = recording === a;
     b.classList.toggle("recording", isRec);
-    b.textContent = isRec ? t("tools.settings.hk.press") : prettyAccel(cur.hotkeys[a] ?? "");
+    b.textContent = isRec ? t("tools.settings.hk.press") : cur.hotkeys[a] ? prettyAccel(cur.hotkeys[a]) : t("more.set.hk.off");
+    const clr = app.querySelector<HTMLButtonElement>(`button[data-clear="${a}"]`);
+    if (clr) clr.disabled = !cur.hotkeys[a];
   });
 }
 
@@ -205,9 +230,13 @@ function bindControls() {
     applyI18n();
     renderHotkeys();
   };
-  for (const k of ["copy_after_capture", "open_editor_after_capture", "play_sound", "launch_at_login"] as const) {
+  for (const k of ["copy_after_capture", "play_sound", "launch_at_login", "include_cursor", "window_shadow"] as const) {
     $(k).onchange = (e) => commit((s) => (s[k] = (e.target as HTMLInputElement).checked));
   }
+  $("after_capture").onchange = (e) => commit((s) => (s.after_capture = (e.target as HTMLSelectElement).value as Settings["after_capture"]));
+  $("color_format").onchange = (e) => commit((s) => (s.color_format = (e.target as HTMLSelectElement).value as Settings["color_format"]));
+  const ts = $("thumbnail_seconds") as HTMLInputElement;
+  ts.onchange = () => commit((s) => (s.thumbnail_seconds = Math.max(0, Math.min(120, Math.round(Number(ts.value) || 0)))));
   $("choose_dir").onclick = async () => {
     const dir = await openDialog({ directory: true, multiple: false, defaultPath: cur.save_dir || undefined });
     if (typeof dir === "string" && dir) commit((s) => (s.save_dir = dir));
@@ -227,7 +256,24 @@ function bindControls() {
   lim.onchange = () => commit((s) => (s.history_limit = Math.max(1, Math.min(10000, Math.round(Number(lim.value) || 200)))));
 
   app.querySelectorAll<HTMLButtonElement>("button[data-hk]").forEach((b) => (b.onclick = () => startRecording(b.dataset.hk!)));
-  $("reset_hotkeys").onclick = () => commit((s) => (s.hotkeys = { ...DEFAULT_HOTKEYS }));
+  app.querySelectorAll<HTMLButtonElement>("button[data-clear]").forEach((b) => (b.onclick = () => commit((s) => (s.hotkeys[b.dataset.clear!] = ""))));
+  $("reset_hotkeys").onclick = async () => {
+    const d = await invoke<Settings>("default_settings");
+    await commit((s) => (s.hotkeys = { ...d.hotkeys }));
+  };
+  $("open_repo").onclick = () => openUrl(REPO_URL).catch((e) => toast(String(e), true));
+  $("repo_url").textContent = REPO_URL;
+  $("remove_data").onclick = async () => {
+    if (!(await ask(t("more.about.removeConfirm"), { title: "CaptureME", kind: "warning", okLabel: t("more.about.removeBtn"), cancelLabel: t("common.cancel") }))) return;
+    if (!(await ask(t("more.about.removeConfirm2"), { title: "CaptureME", kind: "warning", okLabel: t("common.delete"), cancelLabel: t("common.cancel") }))) return;
+    try {
+      await invoke("remove_all_data");
+      await message(t("more.about.removed"), { title: "CaptureME", kind: "info" });
+      await invoke("quit_app");
+    } catch (e) {
+      toast(String(e), true);
+    }
+  };
   $("clear_history").onclick = async () => {
     if (await ask(t("tools.settings.clearConfirm"), { title: "CaptureME", kind: "warning" })) {
       await invoke("history_clear").catch((e) => toast(String(e), true));
@@ -317,6 +363,9 @@ async function init() {
   applyI18n();
   syncControls();
   getVersion().then((v) => ($("version").textContent = v));
+  await listen<string>("settings-tab", (ev) => {
+    if ((TABS as readonly string[]).includes(ev.payload)) showTab(ev.payload as (typeof TABS)[number]);
+  });
   await listen<Settings>("settings-changed", (ev) => {
     if (JSON.stringify(ev.payload) === JSON.stringify(cur)) return;
     const langChanged = ev.payload.language !== cur.language;

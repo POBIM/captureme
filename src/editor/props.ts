@@ -4,6 +4,7 @@ const base: Props = {
   color: "#ef4444", width: 6, opacity: 1, fill: "none", radius: 0, arrowStyle: "straight",
   fontSize: 36, bold: true, textBg: false, shadow: false, stepStyle: "filled",
   strength: 14, dim: 0.55, zoom: 2, emoji: "👍",
+  markStyle: "underline", measureStyle: "ruler", spotMode: "dim", leader: false,
 };
 
 export const DEFAULTS: Record<ObjType, Props> = {
@@ -20,6 +21,13 @@ export const DEFAULTS: Record<ObjType, Props> = {
   spotlight: { ...base, dim: 0.6 },
   magnify: { ...base, color: "#ffffff", width: 5, shadow: true },
   stamp: { ...base, fontSize: 48 },
+  callout: { ...base, color: "#facc15", fontSize: 30, bold: false, radius: 16 },
+  /** Solid, irreversible redaction. */
+  redact: { ...base, color: "#000000", radius: 0 },
+  marker: { ...base, color: "#facc15", opacity: 0.6, radius: 4 },
+  underline: { ...base, width: 5, markStyle: "underline" },
+  measure: { ...base, color: "#f97316", width: 3, fontSize: 22, measureStyle: "ruler" },
+  image: { ...base, opacity: 1, radius: 0 },
 };
 
 export const PROP_KEYS: Record<ObjType, PropKey[]> = {
@@ -33,16 +41,22 @@ export const PROP_KEYS: Record<ObjType, PropKey[]> = {
   step: ["color", "fontSize", "stepStyle", "opacity", "shadow"],
   blur: ["strength"],
   pixelate: ["strength"],
-  spotlight: ["dim", "radius"],
-  magnify: ["color", "width", "zoom", "shadow"],
+  spotlight: ["spotMode", "dim", "strength", "radius"],
+  magnify: ["color", "width", "zoom", "leader", "shadow"],
   stamp: ["emoji", "fontSize", "opacity", "shadow"],
+  callout: ["color", "fontSize", "bold", "radius", "opacity", "shadow"],
+  redact: ["color", "radius"],
+  marker: ["color", "opacity", "radius"],
+  underline: ["color", "markStyle", "width", "opacity"],
+  measure: ["color", "measureStyle", "width", "fontSize", "opacity"],
+  image: ["opacity", "radius", "shadow"],
 };
 
-const LS = "captureme.editor.props.v1";
+const LS = "captureme.editor.props.v2";
 export const toolProps = {} as Record<ObjType, Props>;
 (Object.keys(DEFAULTS) as ObjType[]).forEach((t) => (toolProps[t] = { ...DEFAULTS[t] }));
 try {
-  const saved = JSON.parse(localStorage.getItem(LS) || "{}");
+  const saved = JSON.parse(localStorage.getItem(LS) || localStorage.getItem("captureme.editor.props.v1") || "{}");
   for (const t of Object.keys(DEFAULTS) as ObjType[]) if (saved[t]) toolProps[t] = { ...DEFAULTS[t], ...saved[t] };
 } catch { /* ignore */ }
 

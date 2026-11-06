@@ -1,0 +1,18 @@
+html { color-scheme: dark; }
+html, body { background: transparent !important; overflow: hidden; }
+#card { position: fixed; inset: 8px; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; background: rgba(34, 34, 37, 0.97); border: 1px solid rgba(255, 255, 255, 0.16); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5); animation: slide-in 0.22s ease-out; }
+@keyframes slide-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #card { animation: none; } }
+#imgwrap { flex: 1; min-height: 0; display: grid; place-items: center; background: repeating-conic-gradient(#2c2c30 0% 25%, #232326 0% 50%) 50% / 14px 14px; cursor: grab; }
+#imgwrap:active { cursor: grabbing; }
+#imgwrap img { max-width: 100%; max-height: 100%; display: block; -webkit-user-drag: none; user-select: none; pointer-events: none; }
+#bar { height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 2px; padding: 0 6px; background: rgba(24, 24, 27, 0.98); }
+#bar button { all: unset; box-sizing: border-box; width: 32px; height: 28px; display: grid; place-items: center; border-radius: 7px; color: #eee; cursor: pointer; }
+#bar button:hover { background: rgba(255, 255, 255, 0.16); }
+#bar button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+#bar button.close:hover { background: var(--accent); }
+#bar svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#bar .sp { flex: 1; }
+#msg { position: absolute; left: 8px; right: 8px; bottom: 44px; padding: 4px 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.78); color: #fff; font-size: 11.5px; text-align: center; opacity: 0; transition: opacity 0.2s; pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#msg.show { opacity: 1; }
+#timer { height: 2px; background: var(--accent); transform-origin: left; }

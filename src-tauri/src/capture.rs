@@ -3,7 +3,7 @@
 //! Flow: `start_overlay(mode)` → grab every monitor (xcap) → write each to a temp PNG → open one
 //! borderless always-on-top window per monitor (`overlay.html`). The overlay talks back through
 //! `overlay_info`, `overlay_ready`, `overlay_finish` and `overlay_cancel`.
-use crate::{export, history, ocr, paths, permissions, pin, recording, scroll, settings, types::*, windows};
+use crate::{colors, export, floating, history, import, ocr, paths, permissions, pin, qr, recording, scroll, settings, thumb, types::*, windows};
 use image::{codecs::png::{CompressionType, FilterType, PngEncoder}, ExtendedColorType, ImageEncoder, RgbaImage};
 use serde::Serialize;
 use std::{
@@ -59,6 +59,12 @@ static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 static ACTIVE: AtomicBool = AtomicBool::new(false);
 /// A delayed-capture countdown is running.
 static COUNTING: AtomicBool = AtomicBool::new(false);
+/// The last region/window selection (for "repeat last region").
+static LAST_REGION: Mutex<Option<SelectionRect>> = Mutex::new(None);
+/// We registered the global Esc shortcut for the current overlay session.
+static ESC_REGISTERED: AtomicBool = AtomicBool::new(false);
+/// Colours were picked (Shift+click) during the current colour-picker session.
+static COLOR_PICKED: AtomicBool = AtomicBool::new(false);
 
 const OVERLAY_LEVEL: isize = 1000; // NSScreenSaverWindowLevel – above the menu bar and Dock
 
@@ -90,6 +96,10 @@ pub fn start_overlay(app: &AppHandle, mode: &str) {
     std::thread::spawn(move || {
         if let Err(e) = open_overlays(&app, &mode) {
             log::error!("start_overlay({mode}) failed: {e}");
+            unregister_escape(&app);
+            if !e.starts_with("screen recording permission") {
+                floating::alert(&app, "เริ่มจับภาพไม่สำเร็จ", "Could not start the capture", &e);
+            }
         }
     });
 }
@@ -104,12 +114,16 @@ pub fn start_fullscreen(app: &AppHandle) {
         let res = (|| -> Result<(), String> {
             let monitors = xcap::Monitor::all().map_err(|e| e.to_string())?;
             let m = monitor_under_cursor(&monitors).ok_or("no monitor found")?;
-            let img = m.capture_image().map_err(|e| e.to_string())?;
+            let mut img = m.capture_image().map_err(|e| e.to_string())?;
             let scale = img.width() as f64 / (m.width().map_err(|e| e.to_string())?.max(1) as f64);
+            if settings::get(&app).include_cursor {
+                add_cursor(&mut img, (m.x().unwrap_or(0) as f64, m.y().unwrap_or(0) as f64), scale);
+            }
             deliver(&app, "capture", img, scale)
         })();
         if let Err(e) = res {
             log::error!("fullscreen capture failed: {e}");
+            floating::alert(&app, "จับภาพไม่สำเร็จ", "Capture failed", &e);
         }
     });
 }
@@ -220,6 +234,83 @@ fn write_png(img: &RgbaImage, path: &Path) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Draw the mouse cursor into `img` (a monitor screenshot whose top-left is `origin` in global
+/// points, `scale` pixels per point).
+fn add_cursor(img: &mut RgbaImage, origin: (f64, f64), scale: f64) {
+    let Some((cx, cy)) = cursor_pos() else { return };
+    let Some((sprite, hx, hy, pw, ph)) = cursor_sprite() else { return };
+    let (tw, th) = (((pw * scale).round() as u32).max(1), ((ph * scale).round() as u32).max(1));
+    let sprite = if sprite.width() != tw || sprite.height() != th {
+        image::imageops::resize(&sprite, tw, th, image::imageops::FilterType::Lanczos3)
+    } else {
+        sprite
+    };
+    let x = ((cx - origin.0 - hx) * scale).round() as i64;
+    let y = ((cy - origin.1 - hy) * scale).round() as i64;
+    image::imageops::overlay(img, &sprite, x, y);
+}
+
+/// The current cursor image + hot spot + size (points).
+#[cfg(target_os = "macos")]
+fn cursor_sprite() -> Option<(RgbaImage, f64, f64, f64, f64)> {
+    use objc2_app_kit::NSCursor;
+    objc2::rc::autoreleasepool(|_| {
+        #[allow(deprecated)]
+        let c = NSCursor::currentSystemCursor().unwrap_or_else(NSCursor::arrowCursor);
+        let img = c.image();
+        let hot = c.hotSpot();
+        let size = img.size();
+        let tiff = img.TIFFRepresentation()?;
+        let rgba = import::tiff_to_rgba(&tiff.to_vec()).ok()?;
+        Some((rgba, hot.x, hot.y, size.width, size.height))
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn cursor_sprite() -> Option<(RgbaImage, f64, f64, f64, f64)> {
+    None
+}
+
+/// Capture one window through CoreGraphics. With `shadow` the image includes the window's
+/// drop shadow on a transparent background (macOS ⌥-click style); without it, just the window.
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+fn capture_window_cg(id: u32, shadow: bool) -> Result<RgbaImage, String> {
+    use objc2_core_foundation::{CGPoint, CGRect, CGSize};
+    use objc2_core_graphics::{CGDataProvider, CGImage, CGWindowImageOption, CGWindowListCreateImage, CGWindowListOption};
+    // CGRectNull → "the window's own bounds" (incl. framing effects unless told to ignore them).
+    let null = CGRect::new(CGPoint::new(f64::INFINITY, f64::INFINITY), CGSize::new(0.0, 0.0));
+    let opt = if shadow { CGWindowImageOption::Default } else { CGWindowImageOption::BoundsIgnoreFraming };
+    let cg = CGWindowListCreateImage(null, CGWindowListOption::OptionIncludingWindow, id, opt).ok_or("window image unavailable")?;
+    let (w, h) = (CGImage::width(Some(&cg)), CGImage::height(Some(&cg)));
+    if w == 0 || h == 0 {
+        return Err("empty window image".into());
+    }
+    let stride = CGImage::bytes_per_row(Some(&cg));
+    let provider = CGImage::data_provider(Some(&cg));
+    let data = CGDataProvider::data(provider.as_deref()).ok_or("no pixel data")?.to_vec();
+    let mut buf = Vec::with_capacity(w * h * 4);
+    for row in data.chunks_exact(stride.max(w * 4)).take(h) {
+        buf.extend_from_slice(&row[..w * 4]);
+    }
+    for px in buf.chunks_exact_mut(4) {
+        px.swap(0, 2); // BGRA → RGBA
+        let a = px[3] as u32;
+        if a > 0 && a < 255 {
+            // premultiplied → straight alpha (soft shadow edges stay clean)
+            for c in &mut px[..3] {
+                *c = ((*c as u32 * 255) / a).min(255) as u8;
+            }
+        }
+    }
+    RgbaImage::from_raw(w as u32, h as u32, buf).ok_or_else(|| "bad window image".into())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn capture_window_cg(_id: u32, _shadow: bool) -> Result<RgbaImage, String> {
+    Err("unsupported".into())
+}
+
 fn play_shutter(app: &AppHandle) {
     if !settings::get(app).play_sound {
         return;
@@ -310,6 +401,7 @@ fn build_session(app: &AppHandle, mode: &str) -> Result<(), String> {
         .unwrap_or(0) as f64;
 
     let windows_list = list_windows();
+    let with_cursor = settings::get(app).include_cursor && matches!(mode, "capture" | "window");
 
     // Screenshot + encode every monitor in parallel.
     let shots: Vec<Shot> = std::thread::scope(|s| {
@@ -322,8 +414,11 @@ fn build_session(app: &AppHandle, mode: &str) -> Result<(), String> {
                     let id = m.id().map_err(|e| e.to_string())?;
                     let (x, y) = (m.x().map_err(|e| e.to_string())? as f64, m.y().map_err(|e| e.to_string())? as f64);
                     let (w, h) = (m.width().map_err(|e| e.to_string())? as f64, m.height().map_err(|e| e.to_string())? as f64);
-                    let image = m.capture_image().map_err(|e| e.to_string())?;
+                    let mut image = m.capture_image().map_err(|e| e.to_string())?;
                     let scale = image.width() as f64 / w.max(1.0);
+                    if with_cursor {
+                        add_cursor(&mut image, (x, y), scale);
+                    }
                     let png = tmp.join(format!("overlay-{sid}-{id}.png"));
                     write_png(&image, &png)?;
                     Ok(Shot { id, x, y, w, h, scale, image, png })
@@ -382,6 +477,8 @@ fn build_session(app: &AppHandle, mode: &str) -> Result<(), String> {
         });
     }
 
+    register_escape(app);
+
     // Safety net: show windows whose page never reported ready.
     let a = app.clone();
     std::thread::spawn(move || {
@@ -399,6 +496,30 @@ fn build_session(app: &AppHandle, mode: &str) -> Result<(), String> {
         }
     });
     Ok(())
+}
+
+/// Global Esc while an overlay is open: the way out even if the overlay page failed to load or
+/// never got keyboard focus.
+fn register_escape(app: &AppHandle) {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+    let a = app.clone();
+    let r = app.global_shortcut().on_shortcut("Escape", move |_app, _sc, ev| {
+        if ev.state == ShortcutState::Pressed {
+            let a = a.clone();
+            std::thread::spawn(move || end_session(&a)); // never unregister from inside the callback
+        }
+    });
+    match r {
+        Ok(()) => ESC_REGISTERED.store(true, Ordering::SeqCst),
+        Err(e) => log::warn!("cannot register Esc for the overlay: {e}"),
+    }
+}
+
+fn unregister_escape(app: &AppHandle) {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    if ESC_REGISTERED.swap(false, Ordering::SeqCst) {
+        let _ = app.global_shortcut().unregister("Escape");
+    }
 }
 
 fn show_overlay(app: &AppHandle, win: &WebviewWindow, key: bool) {
@@ -427,7 +548,7 @@ fn cleanup_old_temp(dir: &Path) {
         // Frozen screenshots are only needed during a session; pin/ocr crops live a day.
         let max_age = if name.starts_with("overlay-") {
             3600
-        } else if name.starts_with("crop-") {
+        } else if name.starts_with("crop-") || name.starts_with("pin-") || name.starts_with("drag-") || name.starts_with("rec-") {
             24 * 3600
         } else {
             continue;
@@ -440,7 +561,12 @@ fn cleanup_old_temp(dir: &Path) {
             .map(|d| d > Duration::from_secs(max_age))
             .unwrap_or(false);
         if stale {
-            let _ = std::fs::remove_file(e.path());
+            let p = e.path();
+            if p.is_dir() {
+                let _ = std::fs::remove_dir_all(&p);
+            } else {
+                let _ = std::fs::remove_file(&p);
+            }
         }
     }
 }
@@ -461,6 +587,10 @@ pub fn cleanup_stale(app: &AppHandle) {
 /// Tear the session down without capturing.
 fn end_session(app: &AppHandle) {
     if let Some(s) = take_session() {
+        unregister_escape(app);
+        if s.mode == "color" && COLOR_PICKED.swap(false, Ordering::SeqCst) {
+            colors::show_panel(app); // keep-picking session ended (Esc): show what was collected
+        }
         let (app, labels) = (app.clone(), s.labels.clone());
         std::thread::spawn(move || {
             close_labels(&app, &labels);
@@ -547,15 +677,117 @@ pub fn overlay_cancel(app: AppHandle) {
     end_session(&app);
 }
 
+// ---- measure / colour tools (the overlay stays open, the frozen screenshot is read here) ----
+
+#[derive(Serialize)]
+pub struct Edges {
+    /// Boundary lines in points, relative to the monitor.
+    pub left: f64,
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
+    pub w_px: u32,
+    pub h_px: u32,
+}
+
+fn px_diff(a: &image::Rgba<u8>, b: &image::Rgba<u8>) -> i32 {
+    (0..3).map(|i| (a[i] as i32 - b[i] as i32).abs()).sum()
+}
+
+/// Inclusive pixel range [left, top, right, bottom] of the area around (px, py) that is bounded by
+/// colour edges (a neighbouring pixel differing by more than `tol`, summed over RGB).
+fn find_edges(img: &RgbaImage, px: u32, py: u32, tol: i32) -> (u32, u32, u32, u32) {
+    let (w, h) = (img.width(), img.height());
+    let (px, py) = (px.min(w - 1), py.min(h - 1));
+    let (mut l, mut r, mut t, mut b) = (px, px, py, py);
+    while l > 0 && px_diff(img.get_pixel(l - 1, py), img.get_pixel(l, py)) <= tol {
+        l -= 1;
+    }
+    while r + 1 < w && px_diff(img.get_pixel(r + 1, py), img.get_pixel(r, py)) <= tol {
+        r += 1;
+    }
+    while t > 0 && px_diff(img.get_pixel(px, t - 1), img.get_pixel(px, t)) <= tol {
+        t -= 1;
+    }
+    while b + 1 < h && px_diff(img.get_pixel(px, b + 1), img.get_pixel(px, b)) <= tol {
+        b += 1;
+    }
+    (l, t, r, b)
+}
+
+/// Auto edge detection for the "measure" overlay: scan from (x, y) in four directions.
+#[tauri::command]
+pub fn overlay_measure(monitor: u32, x: f64, y: f64, tol: u32) -> CmdResult<Edges> {
+    let guard = session_lock();
+    let s = guard.as_ref().ok_or("no active overlay")?;
+    let shot = s.shots.iter().find(|m| m.id == monitor).ok_or("unknown monitor")?;
+    let (iw, ih) = (shot.image.width(), shot.image.height());
+    if iw == 0 || ih == 0 {
+        return Err("empty screenshot".into());
+    }
+    let px = ((x * shot.scale).floor().max(0.0) as u32).min(iw - 1);
+    let py = ((y * shot.scale).floor().max(0.0) as u32).min(ih - 1);
+    let (l, t, r, b) = find_edges(&shot.image, px, py, tol.min(255) as i32);
+    let sc = shot.scale;
+    Ok(Edges { left: l as f64 / sc, top: t as f64 / sc, right: (r + 1) as f64 / sc, bottom: (b + 1) as f64 / sc, w_px: r - l + 1, h_px: b - t + 1 })
+}
+
+fn pixel_at(shot: &Shot, x: f64, y: f64) -> [u8; 3] {
+    let px = ((x * shot.scale).floor().max(0.0) as u32).min(shot.image.width().saturating_sub(1));
+    let py = ((y * shot.scale).floor().max(0.0) as u32).min(shot.image.height().saturating_sub(1));
+    let p = shot.image.get_pixel(px, py);
+    [p[0], p[1], p[2]]
+}
+
+/// RGB under (x, y) – used by the colour overlay when the page cannot read pixels itself.
+#[tauri::command]
+pub fn overlay_pixel(monitor: u32, x: f64, y: f64) -> CmdResult<[u8; 3]> {
+    let guard = session_lock();
+    let s = guard.as_ref().ok_or("no active overlay")?;
+    let shot = s.shots.iter().find(|m| m.id == monitor).ok_or("unknown monitor")?;
+    Ok(pixel_at(shot, x, y))
+}
+
+/// The user clicked a pixel in colour-picker mode: copy it (user's format), remember it, and – unless
+/// `keep` (Shift+click) – close the overlay and show the recent-colours panel.
+#[tauri::command]
+pub fn overlay_color_pick(app: AppHandle, monitor: u32, x: f64, y: f64, keep: bool) -> CmdResult<colors::PickedColor> {
+    let rgb = {
+        let guard = session_lock();
+        let s = guard.as_ref().ok_or("no active overlay")?;
+        let shot = s.shots.iter().find(|m| m.id == monitor).ok_or("unknown monitor")?;
+        pixel_at(shot, x, y)
+    };
+    let picked = colors::record_pick(&app, rgb)?;
+    if keep {
+        COLOR_PICKED.store(true, Ordering::SeqCst);
+    } else {
+        end_session(&app);
+        colors::show_panel(&app);
+    }
+    Ok(picked)
+}
+
+/// Change the colour format (hex / rgb / hsl) from the overlay (F key).
+#[tauri::command]
+pub fn color_set_format(app: AppHandle, format: String) -> CmdResult<()> {
+    settings::update(&app, |s| s.color_format = format)
+}
+
 /// Finish the selection. `mode` may differ from the session mode (toolbar buttons):
 /// capture | copy | ocr | pin | scroll | record. `window_id` = snapped window to capture on its own.
 #[tauri::command]
 pub fn overlay_finish(app: AppHandle, mode: String, rect: SelectionRect, window_id: Option<u32>) -> CmdResult<()> {
     let session = take_session().ok_or("no active overlay")?;
+    unregister_escape(&app);
+    if matches!(mode.as_str(), "capture" | "copy") {
+        *LAST_REGION.lock().unwrap_or_else(|e| e.into_inner()) = Some(rect);
+    }
     std::thread::spawn(move || {
         close_labels(&app, &session.labels);
         if let Err(e) = finish(&app, &session, &mode, rect, window_id) {
             log::error!("capture failed: {e}");
+            floating::alert(&app, "จับภาพไม่สำเร็จ", "Capture failed", &e);
         }
         cleanup_session_files(&session);
     });
@@ -563,10 +795,12 @@ pub fn overlay_finish(app: AppHandle, mode: String, rect: SelectionRect, window_
 }
 
 fn finish(app: &AppHandle, s: &Session, mode: &str, rect: SelectionRect, window_id: Option<u32>) -> Result<(), String> {
-    if mode == "scroll" || mode == "record" {
+    if mode == "scroll" || mode == "record" || mode == "record-window" {
         std::thread::sleep(Duration::from_millis(200)); // overlay must be gone before they grab frames
         if mode == "scroll" {
             scroll::start_region(app, rect);
+        } else if let (true, Some(id)) = (mode == "record-window", window_id) {
+            recording::start_window(app, rect, id);
         } else {
             recording::start_region(app, rect);
         }
@@ -575,8 +809,12 @@ fn finish(app: &AppHandle, s: &Session, mode: &str, rect: SelectionRect, window_
 
     // Snapped window → capture just that window (works even if partly covered).
     if let (Some(id), "capture" | "copy") = (window_id, mode) {
-        match capture_window(id) {
-            Ok((img, scale)) => return deliver(app, mode, img, scale),
+        let shadow = settings::get(app).window_shadow;
+        match capture_window_cg(id, shadow).or_else(|e| {
+            log::warn!("CG window capture failed ({e}); trying xcap");
+            capture_window(id).map(|(img, _)| img)
+        }) {
+            Ok(img) => return deliver(app, mode, img, rect.scale.max(1.0)),
             Err(e) => log::warn!("window capture failed ({e}); falling back to crop"),
         }
     }
@@ -611,14 +849,14 @@ fn capture_window(id: u32) -> Result<(RgbaImage, f64), String> {
 
 fn deliver(app: &AppHandle, mode: &str, img: RgbaImage, scale: f64) -> Result<(), String> {
     match mode {
-        "ocr" | "pin" => {
+        "ocr" | "pin" | "qr" => {
             let path = paths::temp_dir(app).join(format!("crop-{}.png", uuid::Uuid::new_v4().simple()));
             write_png(&img, &path)?;
             let p = path.to_string_lossy().into_owned();
-            if mode == "ocr" {
-                ocr::run_on_image(app, &p);
-            } else {
-                pin::open_pin(app, &p);
+            match mode {
+                "ocr" => ocr::run_on_image(app, &p),
+                "qr" => qr::run_on_image(app, &p),
+                _ => pin::open_pin(app, &p),
             }
             Ok(())
         }
@@ -628,37 +866,144 @@ fn deliver(app: &AppHandle, mode: &str, img: RgbaImage, scale: f64) -> Result<()
 }
 
 fn save_capture(app: &AppHandle, img: &RgbaImage, scale: f64, copy_only: bool) -> Result<(), String> {
+    let result = store_capture(app, img, scale)?;
+    play_shutter(app);
+    after_capture(app, &result, copy_only)
+}
+
+/// Write a new capture PNG into the captures dir and add it to the history.
+pub fn store_capture(app: &AppHandle, img: &RgbaImage, scale: f64) -> Result<CaptureResult, String> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Local::now();
     let path = paths::captures_dir(app).join(format!("capture-{}-{}.png", now.format("%Y%m%d-%H%M%S"), &id[..8]));
     write_png(img, &path)?;
-    let path_s = path.to_string_lossy().into_owned();
     let result = CaptureResult {
         id,
-        path: path_s.clone(),
+        path: path.to_string_lossy().into_owned(),
         width: img.width(),
         height: img.height(),
         scale,
         created_at: now.to_rfc3339(),
     };
     history::record(app, &result);
-    play_shutter(app);
+    Ok(result)
+}
 
-    let s = settings::get(app);
+/// What happens with a fresh capture: settings.after_capture = editor | thumbnail | copy | save.
+fn after_capture(app: &AppHandle, res: &CaptureResult, copy_only: bool) -> Result<(), String> {
     if copy_only {
-        return export::copy_file_to_clipboard(app, &path_s);
+        return export::copy_file_to_clipboard(app, &res.path);
     }
-    if s.copy_after_capture {
-        if let Err(e) = export::copy_file_to_clipboard(app, &path_s) {
+    let s = settings::get(app);
+    let copy_mode = s.after_capture == "copy";
+    if s.copy_after_capture || copy_mode {
+        if let Err(e) = export::copy_file_to_clipboard(app, &res.path) {
+            if copy_mode {
+                return Err(e);
+            }
             log::warn!("copy to clipboard failed: {e}");
         }
     }
-    if s.open_editor_after_capture {
-        windows::open_editor(app, &path_s).map_err(|e| e.to_string())?;
-    } else {
-        export::save_file_auto(app, &path_s)?;
+    match s.after_capture.as_str() {
+        "thumbnail" => thumb::show(app, res),
+        "copy" => {}
+        "save" => {
+            export::save_file_auto(app, &res.path)?;
+        }
+        _ => {
+            windows::open_editor_with_id(app, &res.path, &res.id).map_err(|e| e.to_string())?;
+        }
     }
     Ok(())
+}
+
+/// Repeat the last region/window selection on the current screen contents (no overlay).
+pub fn repeat_last(app: &AppHandle) {
+    let Some(r) = *LAST_REGION.lock().unwrap_or_else(|e| e.into_inner()) else {
+        start_region(app); // nothing to repeat yet → ask for a region
+        return;
+    };
+    let app = app.clone();
+    std::thread::spawn(move || {
+        if !ensure_permission(&app) {
+            return;
+        }
+        let res = (|| -> Result<(), String> {
+            let monitors = xcap::Monitor::all().map_err(|e| e.to_string())?;
+            // Same monitor if it is still there, otherwise whichever one contains the region's centre.
+            let (gx, gy) = (r.monitor_x + r.x + r.width / 2.0, r.monitor_y + r.y + r.height / 2.0);
+            let m = monitors
+                .iter()
+                .find(|m| m.id().ok() == Some(r.monitor_id))
+                .or_else(|| {
+                    monitors.iter().find(|m| {
+                        let (Ok(x), Ok(y), Ok(w), Ok(h)) = (m.x(), m.y(), m.width(), m.height()) else { return false };
+                        gx >= x as f64 && gx < (x + w as i32) as f64 && gy >= y as f64 && gy < (y + h as i32) as f64
+                    })
+                })
+                .or_else(|| monitor_under_cursor(&monitors))
+                .ok_or("no monitor found")?;
+            let (mx, my) = (m.x().unwrap_or(0) as f64, m.y().unwrap_or(0) as f64);
+            let mut img = m.capture_image().map_err(|e| e.to_string())?;
+            let sc = img.width() as f64 / (m.width().map_err(|e| e.to_string())?.max(1) as f64);
+            if settings::get(&app).include_cursor {
+                add_cursor(&mut img, (mx, my), sc);
+            }
+            // Region in this monitor's pixel space (use the stored global origin if the id changed).
+            let (rx, ry) = if m.id().ok() == Some(r.monitor_id) { (r.x, r.y) } else { (r.monitor_x + r.x - mx, r.monitor_y + r.y - my) };
+            let (iw, ih) = (img.width(), img.height());
+            let x0 = ((rx * sc).round().max(0.0) as u32).min(iw.saturating_sub(1));
+            let y0 = ((ry * sc).round().max(0.0) as u32).min(ih.saturating_sub(1));
+            let x1 = (((rx + r.width) * sc).round().max(0.0) as u32).min(iw);
+            let y1 = (((ry + r.height) * sc).round().max(0.0) as u32).min(ih);
+            if x1 <= x0 || y1 <= y0 {
+                return Err("the previous region is outside the screen".into());
+            }
+            let crop = image::imageops::crop_imm(&img, x0, y0, x1 - x0, y1 - y0).to_image();
+            deliver(&app, "capture", crop, sc)
+        })();
+        if let Err(e) = res {
+            log::error!("repeat capture failed: {e}");
+            floating::alert(&app, "จับภาพซ้ำไม่สำเร็จ", "Repeat capture failed", &e);
+        }
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::Rgba;
+
+    #[test]
+    #[ignore = "needs a desktop session + screen recording permission"]
+    fn live_window_and_cursor() {
+        let wins = list_windows();
+        println!("{} windows", wins.len());
+        for w in wins.iter().take(4) {
+            let plain = capture_window_cg(w.id, false).unwrap();
+            let shadow = capture_window_cg(w.id, true).unwrap();
+            println!("window {}x{} pts -> plain {}x{} / shadow {}x{}", w.width, w.height, plain.width(), plain.height(), shadow.width(), shadow.height());
+            assert!(shadow.width() >= plain.width());
+            let corner = shadow.get_pixel(0, 0);
+            println!("shadow corner pixel {corner:?}");
+        }
+        let sp = cursor_sprite();
+        println!("cursor sprite: {:?}", sp.as_ref().map(|s| (s.0.width(), s.0.height(), s.1, s.2, s.3, s.4)));
+        println!("cursor pos {:?}", cursor_pos());
+    }
+
+    #[test]
+    fn edge_detection_finds_box() {
+        let mut img = RgbaImage::from_pixel(100, 80, Rgba([255, 255, 255, 255]));
+        for y in 20..50 {
+            for x in 30..70 {
+                img.put_pixel(x, y, Rgba([10, 20, 200, 255]));
+            }
+        }
+        assert_eq!(find_edges(&img, 40, 30, 12), (30, 20, 69, 49));
+        // outside the box: bounded by the screen edges and the box
+        assert_eq!(find_edges(&img, 5, 5, 12), (0, 0, 99, 79));
+    }
 }
 
 // ---------------------------------------------------------------------------------------------

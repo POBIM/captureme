@@ -1,0 +1,18 @@
+html { color-scheme: dark; }
+html, body { background: transparent !important; }
+#card { position: fixed; inset: 0; display: flex; flex-direction: column; background: rgba(30, 30, 32, 0.98); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 6px 14px; }
+.head .title { font-weight: 600; flex: 1; }
+.head .status { color: var(--muted); font-size: 12px; }
+.x { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; border-radius: 6px; padding: 2px 6px; }
+.x:hover { color: #fff; }
+#items { flex: 1; overflow-y: auto; padding: 4px 12px; display: grid; gap: 8px; align-content: start; }
+.item { border: 1px solid var(--border); border-radius: 8px; background: #18181a; padding: 8px 10px; display: grid; gap: 8px; }
+.item .payload { word-break: break-all; max-height: 74px; overflow-y: auto; font: 12.5px ui-monospace, "SF Mono", Menlo, monospace; user-select: text; -webkit-user-select: text; }
+.item .acts { display: flex; gap: 8px; justify-content: flex-end; }
+.btn { appearance: none; border: 1px solid var(--border); background: var(--panel); color: var(--text); padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+.btn:hover { border-color: #666; }
+.btn:focus-visible, .x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.none { color: var(--muted); text-align: center; padding: 40px 12px; line-height: 1.6; }
+.foot { padding: 8px 14px 10px; color: var(--muted); font-size: 11.5px; }
