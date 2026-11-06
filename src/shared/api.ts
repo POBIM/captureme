@@ -36,7 +36,7 @@ export const HOTKEY_ACTIONS = [
   "fullscreen", "region", "window", "repeat", "delayed", "scroll", "record", "ocr", "pin", "color", "measure", "qr", "clipboard", "history",
 ] as const;
 
-export const REPO_URL = "https://github.com/sitthichat/captureme";
+export const REPO_URL = "https://github.com/POBIM/captureme";
 
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),

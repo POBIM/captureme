@@ -40,7 +40,7 @@
     "copyright": "Copyright © 2026 Sitthichat. Released under the MIT License.",
     "license": "MIT",
     "licenseFile": "../LICENSE",
-    "homepage": "https://github.com/sitthichat/captureme",
+    "homepage": "https://github.com/POBIM/captureme",
     "shortDescription": "Free screenshot & annotation tool",
     "longDescription": "CaptureME is a free, open-source menu-bar app for macOS: capture a region, window or the full screen, annotate, OCR (Thai + English), pin, scrolling capture and screen recording. No telemetry, no network access.",
     "resources": {

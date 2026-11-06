@@ -265,7 +265,7 @@ const QrDemo: React.FC<{ t: number }> = ({ t }) => {
       {res > 0 && (
         <div style={{ position: "absolute", left: 760, top: 250, width: 360, borderRadius: 18, background: "rgba(255,255,255,.98)", boxShadow: "0 26px 60px rgba(0,0,0,.45)", padding: 20, fontFamily: FONT, opacity: res, transform: `translateX(${(1 - res) * 40}px)`, zIndex: 60 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, fontWeight: 700, color: C.ink }}><ScanText size={22} color="#4f46e5" /> ผลการอ่าน QR / บาร์โค้ด</div>
-          <div style={{ marginTop: 12, padding: 14, borderRadius: 10, background: "#f1f5f9", fontSize: 16, color: "#0f172a", wordBreak: "break-all", fontFamily: "'SF Mono', Menlo, monospace" }}>https://github.com/sitthichat/captureme</div>
+          <div style={{ marginTop: 12, padding: 14, borderRadius: 10, background: "#f1f5f9", fontSize: 16, color: "#0f172a", wordBreak: "break-all", fontFamily: "'SF Mono', Menlo, monospace" }}>https://github.com/POBIM/captureme</div>
           <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
             <div style={{ flex: 1, padding: "9px 0", borderRadius: 10, textAlign: "center", fontSize: 16, fontWeight: 700, color: "#fff", background: "#4f46e5" }}>คัดลอก ✓</div>
             <div style={{ flex: 1, padding: "9px 0", borderRadius: 10, textAlign: "center", fontSize: 16, fontWeight: 700, color: "#4f46e5", background: "#eef2ff" }}>เปิดลิงก์</div>

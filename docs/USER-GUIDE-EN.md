@@ -187,4 +187,4 @@ Menu-bar icon › **Settings…**
 ### Editor
 `⌘Z` undo · `⇧⌘Z` redo · `⌘C` copy · `⌘S` save · `⇧⌘S` save as · `⌘↵` copy & close · `⌘D` duplicate · `⌘A` select all · `⌘G` group · `⌘V` paste image · `⌘+`/`⌘-`/`⌘0`/`⌘1` zoom · `⌘L`/`⌘R` rotate · `Delete` remove · `Esc` cancel/deselect · `?` help · tools: `V C A L R O P H T N Q Y U Z D B X S M E I` and `1`–`9`
 
-> Having trouble? See [Troubleshooting](INSTALL-EN.md#troubleshooting) or open an issue at https://github.com/sitthichat/captureme/issues
+> Having trouble? See [Troubleshooting](INSTALL-EN.md#troubleshooting) or open an issue at https://github.com/POBIM/captureme/issues

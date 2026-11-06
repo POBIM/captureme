@@ -71,7 +71,7 @@ New defaults (⌃⇧ + key; none collide with macOS ⌘⇧3/4/5/6). Users still 
 9. Translate – skipped on purpose (needs network).
 10. **Remove all CaptureME data** – Settings → About (double confirmation), plus About tab reachable from the tray's "About CaptureME".
 
-About / privacy: Settings → About (version, privacy statement TH+EN, MIT summary, GitHub link `https://github.com/sitthichat/captureme` opened through the opener plugin, remove-data) and an equivalent privacy card in onboarding.
+About / privacy: Settings → About (version, privacy statement TH+EN, MIT summary, GitHub link `https://github.com/POBIM/captureme` opened through the opener plugin, remove-data) and an equivalent privacy card in onboarding.
 
 ## 4. Limitations
 * The frozen-frame overlay means colour/measure work on the screenshot taken when the tool was started (not live).

@@ -11,7 +11,7 @@ CaptureME is free, collects nothing and never uses the internet. Installing take
 - About 50 MB of disk space.
 
 ## Step 1 – Download
-1. Open the **Releases** page: https://github.com/sitthichat/captureme/releases/latest
+1. Open the **Releases** page: https://github.com/POBIM/captureme/releases/latest
 2. Download `CaptureME_<version>_universal.dmg`.
 3. (Recommended) Verify it: put `SHA256SUMS.txt` in the same folder and run
    ```bash

@@ -52,7 +52,7 @@
 ### 📥 ดาวน์โหลดและติดตั้ง (4 ขั้นตอน)
 > ต้องใช้ macOS 14 (Sonoma) ขึ้นไป · รองรับทั้ง Apple Silicon (M1–M4) และ Intel
 
-1. **ดาวน์โหลด** `CaptureME_<เวอร์ชัน>_universal.dmg` จากหน้า [Releases](https://github.com/sitthichat/captureme/releases/latest)
+1. **ดาวน์โหลด** `CaptureME_<เวอร์ชัน>_universal.dmg` จากหน้า [Releases](https://github.com/POBIM/captureme/releases/latest)
 2. **เปิดไฟล์ DMG แล้วลาก CaptureME ไปที่ Applications**
 3. **เปิดแอปครั้งแรก (Gatekeeper)** – แอปนี้ยังไม่ได้ลงนามด้วย Apple Developer ID (ค่าสมาชิก Apple ปีละ $99 – เราเลือกแจกฟรีและไม่ผ่าน Apple) macOS จึงเตือนครั้งแรก:
    - ดับเบิลคลิกเปิดแอป → จะขึ้นข้อความว่า Apple ตรวจสอบไม่ได้ ให้กด **เสร็จสิ้น (Done)**
@@ -91,7 +91,7 @@
 ### 🛠️ สร้างจากซอร์สโค้ด
 ต้องมี macOS, Xcode command-line tools, [Rust](https://rustup.rs), Node.js 20+
 ```bash
-git clone https://github.com/sitthichat/captureme.git && cd captureme
+git clone https://github.com/POBIM/captureme.git && cd captureme
 npm ci
 npm run tauri dev                       # รันแบบพัฒนา
 scripts/build-installer.sh              # สร้าง release/CaptureME_<ver>_universal.dmg + .zip + SHA256SUMS.txt
@@ -168,7 +168,7 @@ OCR ภาษาไทยของ Apple Vision ต้องใช้ macOS 14 �
 ### 📥 Download & install (4 steps)
 > Requires macOS 14 (Sonoma) or later · Apple Silicon (M1–M4) **and** Intel
 
-1. **Download** `CaptureME_<version>_universal.dmg` from [Releases](https://github.com/sitthichat/captureme/releases/latest).
+1. **Download** `CaptureME_<version>_universal.dmg` from [Releases](https://github.com/POBIM/captureme/releases/latest).
 2. **Open the DMG and drag CaptureME to Applications.**
 3. **First launch (Gatekeeper).** The app is not signed with an Apple Developer ID (that costs $99/year – we chose to ship free and independent), so macOS warns you the first time:
    - Double-click the app. A dialog says Apple cannot verify it – click **Done**.
@@ -207,7 +207,7 @@ macOS permissions: **Screen Recording** (required) and, *only when you use that 
 ### 🛠️ Build from source
 Requires macOS, Xcode command-line tools, [Rust](https://rustup.rs), Node.js 20+.
 ```bash
-git clone https://github.com/sitthichat/captureme.git && cd captureme
+git clone https://github.com/POBIM/captureme.git && cd captureme
 npm ci
 npm run tauri dev                       # development run
 scripts/build-installer.sh              # → release/CaptureME_<ver>_universal.dmg + .zip + SHA256SUMS.txt

@@ -16,7 +16,7 @@
 - ❌ **ไม่มีโฆษณา** และไม่มี SDK ของบุคคลที่สาม
 - ❌ **ไม่ใช้เครือข่าย** – แอปไม่มีโค้ดสำหรับเชื่อมต่ออินเทอร์เน็ต ไม่มีระบบอัปเดตอัตโนมัติ ไม่ส่งภาพ/ข้อความ OCR ไปที่ใด (OCR ใช้ Apple Vision ที่ประมวลผลบนเครื่อง)
 - ✅ **ข้อมูลทั้งหมดอยู่บนเครื่องของคุณ** และคุณลบได้ทุกเมื่อ
-- ✅ **โอเพนซอร์ส (MIT)** – ตรวจสอบซอร์สโค้ดเองได้ที่ https://github.com/sitthichat/captureme
+- ✅ **โอเพนซอร์ส (MIT)** – ตรวจสอบซอร์สโค้ดเองได้ที่ https://github.com/POBIM/captureme
 
 > หมายเหตุ: ตอนเปิดแอปครั้งแรก macOS เองอาจตรวจสอบแอปกับ Apple (Gatekeeper) นั่นเป็นการทำงานของระบบปฏิบัติการ ไม่ใช่ของ CaptureME
 
@@ -61,7 +61,7 @@
 5. (ไม่บังคับ) ล้างสิทธิ์: `tccutil reset All com.sitthichat.captureme`
 
 ### การติดต่อ / ปัญหาด้านความเป็นส่วนตัว
-เปิด Issue ที่ https://github.com/sitthichat/captureme/issues – หากมีการเปลี่ยนแปลงนโยบายนี้ จะแจ้งในไฟล์นี้และใน release notes
+เปิด Issue ที่ https://github.com/POBIM/captureme/issues – หากมีการเปลี่ยนแปลงนโยบายนี้ จะแจ้งในไฟล์นี้และใน release notes
 
 ---
 
@@ -75,7 +75,7 @@
 - ❌ **No ads** and no third-party SDKs.
 - ❌ **No network access at all** – the app contains no code that connects to the internet, has no auto-updater, and never uploads images or OCR text. OCR runs on-device with Apple's Vision framework.
 - ✅ **Everything stays on your Mac** and you can delete it at any time.
-- ✅ **Open source (MIT)** – read the code at https://github.com/sitthichat/captureme
+- ✅ **Open source (MIT)** – read the code at https://github.com/POBIM/captureme
 
 > Note: when you first open the app, macOS itself may check it with Apple (Gatekeeper). That is the operating system, not CaptureME.
 
@@ -120,4 +120,4 @@ You can revoke any permission at any time in **System Settings › Privacy & Sec
 5. (Optional) reset permissions: `tccutil reset All com.sitthichat.captureme`
 
 ### Contact / privacy questions
-Open an issue at https://github.com/sitthichat/captureme/issues. Any change to this policy will be written in this file and in the release notes.
+Open an issue at https://github.com/POBIM/captureme/issues. Any change to this policy will be written in this file and in the release notes.

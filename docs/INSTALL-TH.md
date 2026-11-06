@@ -11,7 +11,7 @@ CaptureME ใช้ฟรี ไม่เก็บข้อมูล ไม่�
 - พื้นที่ว่างประมาณ 50 MB
 
 ## ขั้นตอนที่ 1 – ดาวน์โหลด
-1. เปิดหน้า **Releases**: https://github.com/sitthichat/captureme/releases/latest
+1. เปิดหน้า **Releases**: https://github.com/POBIM/captureme/releases/latest
 2. ดาวน์โหลด `CaptureME_<เวอร์ชัน>_universal.dmg`
 3. (แนะนำ) ตรวจไฟล์ว่าไม่ถูกแก้ไข: ดาวน์โหลด `SHA256SUMS.txt` ไว้โฟลเดอร์เดียวกัน แล้วรันใน Terminal
    ```bash
