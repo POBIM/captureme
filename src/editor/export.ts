@@ -141,7 +141,9 @@ export async function doOcr() {
 let forceClose = false;
 export async function closeWindow(force = false) {
   forceClose = force;
-  try { await getCurrentWindow().close(); } catch { window.close(); }
+  const w = getCurrentWindow();
+  // destroy() skips the close-requested guard (the user already confirmed / nothing to lose).
+  try { await (force ? w.destroy() : w.close()); } catch { try { await w.destroy(); } catch { window.close(); } }
 }
 export async function copyAndClose() {
   if (await doCopy()) closeWindow(true);
